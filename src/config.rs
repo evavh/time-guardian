@@ -5,19 +5,19 @@ use std::path::Path;
 use chrono::{Duration, NaiveTime, Weekday};
 
 const DEFAULT_CONFIG: &str = "<user>
-   Monday
+   Monday 24h
       00:00-24:00 24h
-   Tuesday
+   Tuesday 24h
       00:00-24:00 24h
-   Wednesday
+   Wednesday 24h
       00:00-24:00 24h
-   Thursday
+   Thursday 24h
       00:00-24:00 24h
-   Friday
+   Friday 24h
       00:00-24:00 24h
-   Saturday
+   Saturday 24h
       00:00-24:00 24h
-   Sunday
+   Sunday 24h
       00:00-24:00 24h
 ";
 
@@ -39,9 +39,91 @@ struct DayConfig {
     timeslots: Vec<Timeslot>,
 }
 
+type WeekConfig = HashMap<Weekday, DayConfig>;
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Config {
-    users: HashMap<String, HashMap<Weekday, DayConfig>>,
+    users: HashMap<String, WeekConfig>,
+}
+
+peg::parser! {
+    grammar config_parser() for str {
+        rule username() -> String
+            = s:$([^ '\n'|'\t']+) { s.to_owned() }
+
+        rule mon() -> chrono::Weekday
+            = s:$("monday") { Weekday::Mon }
+
+        rule tue() -> chrono::Weekday
+            = s:$("tuesday") { Weekday::Tue }
+
+        rule wed() -> chrono::Weekday
+            = s:$("wednesday") { Weekday::Wed }
+
+        rule thu() -> chrono::Weekday
+            = s:$("thursday") { Weekday::Thu }
+
+        rule fri() -> chrono::Weekday
+            = s:$("friday") { Weekday::Fri }
+
+        rule sat() -> chrono::Weekday
+            = s:$("saturday") { Weekday::Sat }
+
+        rule sun() -> chrono::Weekday
+            = s:$("sunday") { Weekday::Sun }
+
+        rule weekday() -> chrono::Weekday
+            = mon() / tue() / wed() / thu() / fri() / sat() / sun()
+
+        rule number() -> u32
+            = s:$(['0'..='9']*<1,2>) { s.parse().unwrap() }
+
+        rule pos_number() -> i64
+            = s:$(['0'..='9']*<1,2>) { s.parse().unwrap() }
+
+        rule time_hm() -> NaiveTime
+            = h:number() ":" m:number()
+            { NaiveTime::from_hms_opt(h, m, 0).unwrap() }
+
+        rule time_hms() -> NaiveTime
+            = h:number() ":" m:number() ":" s:number()
+            { NaiveTime::from_hms_opt(h, m, s).unwrap() }
+
+        rule time() -> NaiveTime
+            = time_hm() / time_hms()
+
+        rule timerange() -> TimeRange
+            = s:time() "-" e:time() { TimeRange { start: s, end: e}}
+
+        rule duration_h() -> Duration
+            = h:pos_number() "h" { Duration::hours(h) }
+
+        rule duration_hm() -> Duration
+            = h:pos_number() "h" m:pos_number() "m"
+            { Duration::hours(h) + Duration::minutes(m) }
+
+        rule duration_hms() -> Duration
+            = h:pos_number() "h" m:pos_number() "m" s:pos_number() "s"
+            { Duration::hours(h) + Duration::minutes(m) + Duration::seconds(s)}
+
+        rule duration() -> Duration
+            = duration_h() / duration_hm() / duration_hms()
+
+        rule timeslot() -> Timeslot
+            = t:timerange() " " d:duration()
+            { Timeslot { range: t, duration: d }}
+
+        rule timeslot_list() -> Vec<Timeslot>
+            = timeslot() ++ "\n\t\t"
+
+        rule dayconfig() -> DayConfig
+            = d:duration() "\n\t\t" t:timeslot_list()
+            { DayConfig { total_duration: d, timeslots: t }}
+
+        rule weekconfig() -> WeekConfig
+            = "\t" w:weekday() " " c:dayconfig()
+            { todo!("Make vec of pairs and turn that into hashmap")}
+    }
 }
 
 impl Config {
