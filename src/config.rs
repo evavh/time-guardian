@@ -121,7 +121,7 @@ peg::parser! {
             { DayConfig { total_duration: d, timeslots: t }}
 
         rule weekconfig() -> WeekConfig
-            = "\t" w:weekday() " " c:dayconfig()
+            = ("\t" w:weekday() " " c:dayconfig()) ** "\n"
             { todo!("Make vec of pairs and turn that into hashmap")}
     }
 }
