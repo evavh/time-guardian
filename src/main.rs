@@ -1,4 +1,4 @@
-use std::{collections::HashMap, process::Command};
+use std::{collections::HashMap, process::Command, thread, time::Duration};
 
 const CONFIG_PATH: &str = "/home/focus/.config/time-guardian/config";
 
@@ -16,7 +16,35 @@ fn main() {
         })
         .collect();
 
-    dbg!(is_active("focus"));
+    let mut spent_seconds: HashMap<&str, usize> = settings
+        .clone()
+        .into_iter()
+        .map(|(user, _t)| (user, 0))
+        .collect();
+
+    loop {
+        thread::sleep(Duration::from_secs(1));
+        for (user, allowed_seconds) in &settings {
+            println!("User {user} has now spent {}s", spent_seconds[user]);
+
+            if is_active(user) {
+                *spent_seconds.get_mut(user).unwrap() += 1;
+
+                if spent_seconds[user] >= *allowed_seconds {
+                    logout(user);
+                }
+            }
+        }
+    }
+}
+
+fn logout(user: &str) {
+    println!("Logging out user {user}");
+    Command::new("loginctl")
+        .arg("terminate-user")
+        .arg(user)
+        .output()
+        .unwrap();
 }
 
 fn is_active(user: &str) -> bool {
