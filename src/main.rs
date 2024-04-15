@@ -16,11 +16,7 @@ fn main() {
         })
         .collect();
 
-    let mut spent_seconds: HashMap<&str, usize> = settings
-        .clone()
-        .into_iter()
-        .map(|(user, _t)| (user, 0))
-        .collect();
+    let mut spent_seconds = initialize_counting(&settings);
 
     loop {
         thread::sleep(Duration::from_secs(1));
@@ -38,13 +34,23 @@ fn main() {
     }
 }
 
+fn initialize_counting<'a>(
+    settings: &'a HashMap<&'a str, usize>,
+) -> HashMap<&'a str, usize> {
+    settings
+        .clone()
+        .into_iter()
+        .map(|(user, _t)| (user, 0))
+        .collect()
+}
+
 fn logout(user: &str) {
     println!("Logging out user {user}");
-    Command::new("loginctl")
-        .arg("terminate-user")
-        .arg(user)
-        .output()
-        .unwrap();
+    // Command::new("loginctl")
+    //     .arg("terminate-user")
+    //     .arg(user)
+    //     .output()
+    //     .unwrap();
 }
 
 fn is_active(user: &str) -> bool {
