@@ -1,3 +1,4 @@
+use chrono::Local;
 use std::{collections::HashMap, process::Command, thread, time::Duration};
 
 const CONFIG_PATH: &str = "/home/focus/.config/time-guardian/config";
@@ -17,9 +18,19 @@ fn main() {
         .collect();
 
     let mut spent_seconds = initialize_counting(&settings);
+    let mut accounted_date = Local::now().date_naive();
 
     loop {
+        let current_date = Local::now().date_naive();
+        // Reset on new day
+        if current_date != accounted_date {
+            println!("New day, resetting");
+            spent_seconds = initialize_counting(&settings);
+            accounted_date = current_date;
+        }
+
         thread::sleep(Duration::from_secs(1));
+
         for (user, allowed_seconds) in &settings {
             println!("User {user} has now spent {}s", spent_seconds[user]);
 
