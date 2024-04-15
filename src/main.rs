@@ -8,7 +8,7 @@ fn main() {
 
     let settings: HashMap<&str, usize> = config
         .lines()
-        .map(|line| line.split(","))
+        .map(|line| line.split(','))
         .map(|mut entry| {
             (
                 entry.next().unwrap(),
@@ -53,8 +53,8 @@ fn initialize_counting<'a>(
 ) -> HashMap<&'a str, usize> {
     settings
         .clone()
-        .into_iter()
-        .map(|(user, _t)| (user, 0))
+        .into_keys()
+        .map(|user| (user, 0))
         .collect()
 }
 
