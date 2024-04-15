@@ -1,10 +1,10 @@
 use chrono::Local;
-use std::{collections::HashMap, process::Command, thread, time::Duration};
+use std::{collections::HashMap, fs, process::Command, thread, time::Duration};
 
 const CONFIG_PATH: &str = "/home/focus/.config/time-guardian/config";
 
 fn main() {
-    let config = std::fs::read_to_string(CONFIG_PATH).unwrap();
+    let config = fs::read_to_string(CONFIG_PATH).unwrap();
 
     let settings: HashMap<&str, usize> = config
         .lines()
@@ -14,6 +14,9 @@ fn main() {
                 entry.next().unwrap(),
                 entry.next().unwrap().parse::<usize>().unwrap(),
             )
+        })
+        .inspect(|(user, _)| {
+            assert!(exists(user), "Error in config: {user} doesn't exist")
         })
         .collect();
 
@@ -62,6 +65,12 @@ fn logout(user: &str) {
     //     .arg(user)
     //     .output()
     //     .unwrap();
+}
+
+fn exists(user: &str) -> bool {
+    fs::read_to_string("/etc/passwd")
+        .unwrap()
+        .contains(&format!("{user}:"))
 }
 
 fn is_active(user: &str) -> bool {
