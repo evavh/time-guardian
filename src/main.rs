@@ -16,7 +16,7 @@ fn main() {
             )
         })
         .inspect(|(user, _)| {
-            assert!(exists(user), "Error in config: {user} doesn't exist")
+            assert!(exists(user), "Error in config: {user} doesn't exist");
         })
         .collect();
 
