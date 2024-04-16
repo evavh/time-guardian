@@ -1,29 +1,15 @@
 use chrono::Local;
 use std::{collections::HashMap, fs, thread, time::Duration};
 
+use crate::user_management::{exists, is_active, logout};
+
 mod user_management;
 
 const CONFIG_PATH: &str = "/home/focus/.config/time-guardian/config";
 
 fn main() {
-    let config = fs::read_to_string(CONFIG_PATH).unwrap();
 
-    let settings: HashMap<&str, usize> = config
-        .lines()
-        .map(|line| line.split(','))
-        .map(|mut entry| {
-            (
-                entry.next().unwrap(),
-                entry.next().unwrap().parse::<usize>().unwrap(),
-            )
-        })
-        .inspect(|(user, _)| {
-            assert!(
-                user_management::exists(user),
-                "Error in config: {user} doesn't exist"
-            );
-        })
-        .collect();
+    let settings = load_config();
 
     let mut spent_seconds = initialize_counting(&settings);
     let mut accounted_date = Local::now().date_naive();
@@ -42,19 +28,40 @@ fn main() {
         for (user, allowed_seconds) in &settings {
             println!("User {user} has now spent {}s", spent_seconds[user]);
 
-            if user_management::is_active(user) {
+            if is_active(user) {
                 *spent_seconds.get_mut(user).unwrap() += 1;
 
                 if spent_seconds[user] >= *allowed_seconds {
-                    user_management::logout(user);
+                    logout(user);
                 }
             }
         }
     }
 }
 
-fn initialize_counting<'a>(
-    settings: &'a HashMap<&'a str, usize>,
-) -> HashMap<&'a str, usize> {
+fn load_config() -> HashMap<String, usize> {
+    let config = fs::read_to_string(CONFIG_PATH).unwrap();
+
+    config
+        .lines()
+        .map(|line| line.split(','))
+        .map(|mut entry| {
+            (
+                entry.next().unwrap().to_owned(),
+                entry.next().unwrap().parse::<usize>().unwrap(),
+            )
+        })
+        .inspect(|(user, _)| {
+            assert!(
+                exists(user),
+                "Error in config: {user} doesn't exist"
+            );
+        })
+        .collect()
+}
+
+fn initialize_counting(
+    settings: &HashMap<String, usize>,
+) -> HashMap<String, usize> {
     settings.clone().into_keys().map(|user| (user, 0)).collect()
 }
