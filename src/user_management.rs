@@ -1,8 +1,5 @@
-use std;
-
-use std::process::Command;
-
 use std::fs;
+use std::process::Command;
 
 pub(crate) fn list_users() -> Vec<String> {
     fs::read_dir("/home")

@@ -62,8 +62,8 @@ fn main() {
 fn check_correct(config: &Config) {
     let Config { total_per_day } = config;
 
-    for (user, _) in total_per_day {
-        assert!(exists(&user), "Error in config: user {user} does not exist");
+    for user in total_per_day.keys() {
+        assert!(exists(user), "Error in config: user {user} does not exist");
     }
 }
 
