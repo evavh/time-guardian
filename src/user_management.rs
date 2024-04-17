@@ -4,6 +4,15 @@ use std::process::Command;
 
 use std::fs;
 
+pub(crate) fn list_users() -> Vec<String> {
+    fs::read_dir("/home")
+        .unwrap()
+        .map(Result::unwrap)
+        .map(|d| d.file_name())
+        .map(|s| s.into_string().unwrap())
+        .collect()
+}
+
 pub(crate) fn logout(user: &str) {
     println!("Logging out user {user}");
     // Command::new("loginctl")
@@ -38,4 +47,3 @@ pub(crate) fn is_active(user: &str) -> bool {
 
     state.contains("active")
 }
-
