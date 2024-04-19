@@ -24,7 +24,7 @@ impl Default for Config {
     }
 }
 
-pub fn run(config: Config) -> ! {
+pub fn run(config: &Config) -> ! {
     let users: Vec<_> = config
         .total_per_day
         .keys()

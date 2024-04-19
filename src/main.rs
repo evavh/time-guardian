@@ -8,7 +8,7 @@ fn main() {
     let config = confy::load("time-guardian", Some("config")).unwrap();
     check_correct(&config);
 
-    time_guardian::run(config)
+    time_guardian::run(&config)
 }
 
 
