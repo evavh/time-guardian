@@ -25,9 +25,12 @@ impl Default for Config {
 }
 
 pub fn run(config: Config) -> ! {
-    let total_per_day = config.total_per_day;
-
-    let mut spent_seconds = initialize_counting(&total_per_day);
+    let users: Vec<_> = config
+        .total_per_day
+        .keys()
+        .map(ToString::to_string)
+        .collect();
+    let mut spent_seconds = initialize_counting(&users);
     let mut accounted_date = Local::now().date_naive();
 
     loop {
@@ -35,13 +38,13 @@ pub fn run(config: Config) -> ! {
         // Reset on new day
         if current_date != accounted_date {
             println!("New day, resetting");
-            spent_seconds = initialize_counting(&total_per_day);
+            spent_seconds = initialize_counting(&users);
             accounted_date = current_date;
         }
 
         thread::sleep(Duration::from_secs(1));
 
-        for (user, allowed_seconds) in &total_per_day {
+        for (user, allowed_seconds) in &config.total_per_day {
             println!(
                 "User {user} has now spent {}/{}s",
                 spent_seconds[user], allowed_seconds
@@ -66,8 +69,9 @@ pub fn check_correct(config: &Config) {
     }
 }
 
-pub(crate) fn initialize_counting(
-    settings: &HashMap<String, usize>,
-) -> HashMap<String, usize> {
-    settings.clone().into_keys().map(|user| (user, 0)).collect()
+pub(crate) fn initialize_counting(users: &[String]) -> HashMap<String, usize> {
+    users
+        .iter()
+        .map(|user| ((*user).to_string(), 0_usize))
+        .collect()
 }
