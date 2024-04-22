@@ -5,22 +5,31 @@ use std::time::Duration;
 use chrono::Local;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::user_management::{exists, is_active, logout};
+use crate::user_management::{exists, is_active, list_users, logout};
 
-use self::user_management::list_users;
-
+mod notification;
 mod user_management;
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
+    pub short_warning_seconds: usize,
+    pub long_warning_seconds: usize,
     pub total_per_day: HashMap<String, usize>,
+    // TODO: make this a user setting
 }
 
 impl Default for Config {
     fn default() -> Self {
         let total_per_day: HashMap<String, usize> =
             list_users().into_iter().map(|user| (user, 86400)).collect();
-        Self { total_per_day }
+        let short_warning_seconds = 30;
+        let long_warning_seconds = 300;
+
+        Self {
+            total_per_day,
+            short_warning_seconds,
+            long_warning_seconds,
+        }
     }
 }
 
@@ -53,6 +62,21 @@ pub fn run(config: &Config) -> ! {
             if is_active(user) {
                 *spent_seconds.get_mut(user).unwrap() += 1;
 
+                // TODO: make short and long warnings different
+                // (and multiple possible)
+                if allowed_seconds - spent_seconds[user]
+                    == config.short_warning_seconds
+                    || allowed_seconds - spent_seconds[user]
+                        == config.long_warning_seconds
+                {
+                    notification::notify_user(
+                        user,
+                        &format!(
+                            "You will be logged out in {} seconds!",
+                            allowed_seconds - spent_seconds[user]
+                        ),
+                    );
+                }
                 if spent_seconds[user] >= *allowed_seconds {
                     logout(user);
                 }
@@ -62,7 +86,7 @@ pub fn run(config: &Config) -> ! {
 }
 
 pub fn check_correct(config: &Config) {
-    let Config { total_per_day } = config;
+    let Config { total_per_day, .. } = config;
 
     for user in total_per_day.keys() {
         assert!(exists(user), "Error in config: user {user} does not exist");

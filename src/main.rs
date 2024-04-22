@@ -5,6 +5,7 @@ fn main() {
         "Using config file: {:?}",
         confy::get_configuration_file_path("time-guardian", None).unwrap()
     );
+    // TODO: make correct path for root
     let config = confy::load("time-guardian", Some("config")).unwrap();
     check_correct(&config);
 
