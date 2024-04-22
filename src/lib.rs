@@ -56,6 +56,16 @@ pub fn run(config: &Config) -> ! {
         for (user, allowed_seconds) in &config.total_per_day {
             if is_active(user) {
                 *spent_seconds.get_mut(user).unwrap() += 1;
+                // TODO create if does not exist!
+                // TODO change to spent_seconds (not seconds left)
+                std::fs::write(
+                    format!("/var/lib/time-guardian/{user}.status"),
+                    format!(
+                        "{}\n{}\n",
+                        accounted_date.format("%d-%m-%Y"),
+                        allowed_seconds - spent_seconds[user]
+                    ),
+                ).unwrap();
 
                 // TODO: make short and long warnings different
                 // (and multiple possible)
