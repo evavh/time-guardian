@@ -12,11 +12,11 @@ pub(crate) fn list_users() -> Vec<String> {
 
 pub(crate) fn logout(user: &str) {
     println!("Logging out user {user}");
-    // Command::new("loginctl")
-    //     .arg("terminate-user")
-    //     .arg(user)
-    //     .output()
-    //     .unwrap();
+    Command::new("loginctl")
+        .arg("terminate-user")
+        .arg(user)
+        .output()
+        .unwrap();
 }
 
 pub(crate) fn exists(user: &str) -> bool {

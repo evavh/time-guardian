@@ -54,11 +54,6 @@ pub fn run(config: &Config) -> ! {
         thread::sleep(Duration::from_secs(1));
 
         for (user, allowed_seconds) in &config.total_per_day {
-            println!(
-                "User {user} has now spent {}/{}s",
-                spent_seconds[user], allowed_seconds
-            );
-
             if is_active(user) {
                 *spent_seconds.get_mut(user).unwrap() += 1;
 
