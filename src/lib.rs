@@ -2,7 +2,7 @@ use std::thread;
 use std::time::Duration;
 use std::{collections::HashMap, fs};
 
-use chrono::Local;
+use chrono::{Local, NaiveDate};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::user_management::{exists, is_active, list_users, logout};
@@ -33,6 +33,24 @@ impl Default for Config {
     }
 }
 
+struct Counter {
+    date: NaiveDate,
+    spent_seconds: HashMap<String, usize>,
+}
+
+impl Counter {
+    fn new(users: &[String]) -> Self {
+        Self {
+            date: Local::now().date_naive(),
+            spent_seconds: initialize_counting(users),
+        }
+    }
+
+    fn is_outdated(&self) -> bool {
+        Local::now().date_naive() == self.date
+    }
+}
+
 pub fn run(config: &Config) -> ! {
     let users: Vec<_> = config
         .total_per_day
@@ -40,38 +58,35 @@ pub fn run(config: &Config) -> ! {
         .map(ToString::to_string)
         .collect();
 
-    let mut spent_seconds = initialize_counting(&users);
-    let mut accounted_date = Local::now().date_naive();
+    let mut counter = Counter::new(&users);
 
     loop {
-        let current_date = Local::now().date_naive();
         // Reset on new day
-        if current_date != accounted_date {
+        if counter.is_outdated() {
             println!("New day, resetting");
-            spent_seconds = initialize_counting(&users);
-            accounted_date = current_date;
+            counter = Counter::new(&users);
         }
 
         thread::sleep(Duration::from_secs(1));
 
         for (user, allowed_seconds) in &config.total_per_day {
             if is_active(user) {
-                *spent_seconds.get_mut(user).unwrap() += 1;
+                *counter.spent_seconds.get_mut(user).unwrap() += 1;
 
-                if spent_seconds[user] >= *allowed_seconds {
+                if counter.spent_seconds[user] >= *allowed_seconds {
                     logout(user);
                     // To prevent overflows in subtractions
                     continue;
                 }
 
-                let seconds_left = allowed_seconds - spent_seconds[user];
+                let seconds_left = allowed_seconds - counter.spent_seconds[user];
                 // TODO create if does not exist!
                 // TODO change to spent_seconds (not seconds left)
                 fs::write(
                     format!("/var/lib/time-guardian/{user}.status"),
                     format!(
                         "{}\n{}\n",
-                        accounted_date.format("%d-%m-%Y"),
+                        counter.date.format("%d-%m-%Y"),
                         seconds_left
                     ),
                 )
