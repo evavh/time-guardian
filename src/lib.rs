@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
+use std::{collections::HashMap, fs};
 
 use chrono::Local;
 use serde_derive::{Deserialize, Serialize};
@@ -39,6 +39,7 @@ pub fn run(config: &Config) -> ! {
         .keys()
         .map(ToString::to_string)
         .collect();
+
     let mut spent_seconds = initialize_counting(&users);
     let mut accounted_date = Local::now().date_naive();
 
@@ -56,34 +57,38 @@ pub fn run(config: &Config) -> ! {
         for (user, allowed_seconds) in &config.total_per_day {
             if is_active(user) {
                 *spent_seconds.get_mut(user).unwrap() += 1;
+
+                if spent_seconds[user] >= *allowed_seconds {
+                    logout(user);
+                    // To prevent overflows in subtractions
+                    continue;
+                }
+
+                let seconds_left = allowed_seconds - spent_seconds[user];
                 // TODO create if does not exist!
                 // TODO change to spent_seconds (not seconds left)
-                std::fs::write(
+                fs::write(
                     format!("/var/lib/time-guardian/{user}.status"),
                     format!(
                         "{}\n{}\n",
                         accounted_date.format("%d-%m-%Y"),
-                        allowed_seconds - spent_seconds[user]
+                        seconds_left
                     ),
-                ).unwrap();
+                )
+                .unwrap();
 
                 // TODO: make short and long warnings different
                 // (and multiple possible)
-                if allowed_seconds - spent_seconds[user]
-                    == config.short_warning_seconds
-                    || allowed_seconds - spent_seconds[user]
-                        == config.long_warning_seconds
+                if seconds_left == config.short_warning_seconds
+                    || seconds_left == config.long_warning_seconds
                 {
                     notification::notify_user(
                         user,
                         &format!(
                             "You will be logged out in {} seconds!",
-                            allowed_seconds - spent_seconds[user]
+                            seconds_left
                         ),
                     );
-                }
-                if spent_seconds[user] >= *allowed_seconds {
-                    logout(user);
                 }
             }
         }
