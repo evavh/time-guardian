@@ -10,6 +10,8 @@ use crate::user_management::{exists, is_active, list_users, logout};
 mod notification;
 mod user_management;
 
+const STATUS_PATH: &str = "/var/lib/time-guardian/status.toml";
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub short_warning_seconds: usize,
@@ -33,6 +35,7 @@ impl Default for Config {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct Counter {
     date: NaiveDate,
     spent_seconds: HashMap<String, usize>,
@@ -47,7 +50,25 @@ impl Counter {
     }
 
     fn is_outdated(&self) -> bool {
-        Local::now().date_naive() == self.date
+        Local::now().date_naive() != self.date
+    }
+
+    fn load() -> Result<Self, String> {
+        let toml = match fs::read_to_string(STATUS_PATH) {
+            Ok(str) => str,
+            Err(err) => return Err(err.to_string()),
+        };
+        let counter: Result<Counter, _> = toml::from_str(&toml);
+
+        match counter {
+            Ok(res) => Ok(res),
+            Err(err) => return Err(format!("{}", err)),
+        }
+    }
+
+    fn store(&self) {
+        let toml = toml::to_string(&self).unwrap();
+        fs::write(STATUS_PATH, toml).unwrap();
     }
 }
 
@@ -58,7 +79,19 @@ pub fn run(config: &Config) -> ! {
         .map(ToString::to_string)
         .collect();
 
-    let mut counter = Counter::new(&users);
+    let mut counter = match Counter::load() {
+        Ok(counter) => {
+            if !counter.is_outdated() {
+                counter
+            } else {
+                Counter::new(&users)
+            }
+        }
+        Err(err) => {
+            dbg!(err);
+            Counter::new(&users)
+        }
+    };
 
     loop {
         // Reset on new day
@@ -79,9 +112,12 @@ pub fn run(config: &Config) -> ! {
                     continue;
                 }
 
-                let seconds_left = allowed_seconds - counter.spent_seconds[user];
+                let seconds_left =
+                    allowed_seconds - counter.spent_seconds[user];
                 // TODO create if does not exist!
                 // TODO change to spent_seconds (not seconds left)
+
+                counter.store();
                 fs::write(
                     format!("/var/lib/time-guardian/{user}.status"),
                     format!(
