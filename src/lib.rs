@@ -68,6 +68,7 @@ impl Counter {
 
     fn store(&self) {
         let toml = toml::to_string(&self).unwrap();
+        // TODO create if does not exist!
         fs::write(STATUS_PATH, toml).unwrap();
     }
 }
@@ -108,25 +109,14 @@ pub fn run(config: &Config) -> ! {
 
                 if counter.spent_seconds[user] >= *allowed_seconds {
                     logout(user);
-                    // To prevent overflows in subtractions
+                    // This user doesn't need to be accounted for right now
                     continue;
                 }
 
                 let seconds_left =
-                    allowed_seconds - counter.spent_seconds[user];
-                // TODO create if does not exist!
-                // TODO change to spent_seconds (not seconds left)
+                    allowed_seconds.saturating_sub(counter.spent_seconds[user]);
 
                 counter.store();
-                fs::write(
-                    format!("/var/lib/time-guardian/{user}.status"),
-                    format!(
-                        "{}\n{}\n",
-                        counter.date.format("%d-%m-%Y"),
-                        seconds_left
-                    ),
-                )
-                .unwrap();
 
                 // TODO: make short and long warnings different
                 // (and multiple possible)
