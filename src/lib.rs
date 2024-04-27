@@ -12,7 +12,7 @@ mod user_management;
 
 const STATUS_PATH: &str = "/var/lib/time-guardian/status.toml";
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub short_warning_seconds: usize,
     pub long_warning_seconds: usize,
