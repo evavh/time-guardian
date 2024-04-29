@@ -28,9 +28,9 @@ impl Default for Config {
         let long_warning_seconds = 300;
 
         Self {
-            total_per_day,
             short_warning_seconds,
             long_warning_seconds,
+            total_per_day,
         }
     }
 }
@@ -62,7 +62,7 @@ impl Counter {
 
         match counter {
             Ok(res) => Ok(res),
-            Err(err) => return Err(format!("{}", err)),
+            Err(err) => Err(format!("{err}")),
         }
     }
 
@@ -82,10 +82,10 @@ pub fn run(config: &Config) -> ! {
 
     let mut counter = match Counter::load() {
         Ok(counter) => {
-            if !counter.is_outdated() {
-                counter
-            } else {
+            if counter.is_outdated() {
                 Counter::new(&users)
+            } else {
+                counter
             }
         }
         Err(err) => {
@@ -126,8 +126,7 @@ pub fn run(config: &Config) -> ! {
                     notification::notify_user(
                         user,
                         &format!(
-                            "You will be logged out in {} seconds!",
-                            seconds_left
+                            "You will be logged out in {seconds_left} seconds!",
                         ),
                     );
                 }

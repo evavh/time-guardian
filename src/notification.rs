@@ -1,19 +1,10 @@
 use std::process::Command;
 
-pub(crate) fn notify_all_users(text: &str) {
-    let users = get_logged_in_users();
-
-    for (uid, username) in users {
-        notify(&username, &uid, text);
-    }
-}
-
 pub(crate) fn notify_user(target_name: &str, text: &str) {
     let users = get_logged_in_users();
     let (uid, name) = users
         .iter()
-        .filter(|(_uid, name)| name == target_name)
-        .next()
+        .find(|(_uid, name)| name == target_name)
         .unwrap();
 
     notify(name, uid, text);
