@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 use std::{collections::HashMap, fs};
@@ -68,7 +69,13 @@ impl Counter {
 
     fn store(&self) {
         let toml = toml::to_string(&self).unwrap();
-        // TODO create if does not exist!
+
+        if !PathBuf::from(STATUS_PATH).parent().unwrap().exists() {
+            std::fs::create_dir_all(
+                PathBuf::from(STATUS_PATH).parent().unwrap(),
+            )
+            .unwrap();
+        }
         fs::write(STATUS_PATH, toml).unwrap();
     }
 }
