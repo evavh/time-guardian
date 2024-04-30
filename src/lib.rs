@@ -68,16 +68,23 @@ impl Counter {
         }
     }
 
-    fn store(&self) {
-        let toml = toml::to_string(&self).unwrap();
+    fn store(&self) -> Result<(), std::io::Error> {
+        let toml = toml::to_string(&self)
+            .expect("Serializing failed, probably an error in toml");
 
-        if !PathBuf::from(STATUS_PATH).parent().unwrap().exists() {
+        if !PathBuf::from(STATUS_PATH)
+            .parent()
+            .expect("This path should have a parent")
+            .exists()
+        {
             std::fs::create_dir_all(
-                PathBuf::from(STATUS_PATH).parent().unwrap(),
-            )
-            .unwrap();
+                PathBuf::from(STATUS_PATH)
+                    .parent()
+                    .expect("This path should have a parent"),
+            )?;
         }
-        fs::write(STATUS_PATH, toml).unwrap();
+        fs::write(STATUS_PATH, toml)?;
+        Ok(())
     }
 }
 
@@ -102,20 +109,34 @@ pub fn run(mut config: Config) -> ! {
         }
     };
 
+    match counter.store() {
+        Ok(()) => (),
+        Err(e) => panic!("Error while trying to store counter: {e}"),
+    };
+
     loop {
         // Reset on new day
         if counter.is_outdated() {
             println!("New day, resetting");
             counter = Counter::new(&users);
 
-            let new_config: Config = confy::load_path(CONFIG_PATH).unwrap();
-            config = match check_correct(&new_config) {
-                Ok(()) => new_config,
+            let old_config = config;
+            config = match confy::load_path(CONFIG_PATH) {
+                Ok(new_config) => match check_correct(&new_config) {
+                    Ok(()) => new_config,
+                    Err(e) => {
+                        println!(
+                            "New config has errors ({e}), using old config"
+                        );
+                        old_config
+                    }
+                },
+
                 Err(e) => {
-                    println!("New config has errors ({e}), not applying");
-                    config
+                    println!("Couldn't load config, error: {e}");
+                    old_config
                 }
-            }
+            };
         }
 
         thread::sleep(Duration::from_secs(1));
@@ -133,7 +154,9 @@ pub fn run(mut config: Config) -> ! {
                 let seconds_left =
                     allowed_seconds.saturating_sub(counter.spent_seconds[user]);
 
-                counter.store();
+                counter
+                    .store()
+                    .expect("This worked before starting, and should work now");
 
                 // TODO: make short and long warnings different
                 // (and multiple possible)

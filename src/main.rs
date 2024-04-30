@@ -1,9 +1,18 @@
-use time_guardian::check_correct;
-
+use time_guardian::{check_correct, Config, CONFIG_PATH};
 
 fn main() {
-    let config = confy::load_path(time_guardian::CONFIG_PATH).unwrap();
-    check_correct(&config).unwrap();
+    let config: Config = match confy::load_path(CONFIG_PATH) {
+        Ok(config) => config,
+        Err(e) => {
+            println!("Couldn't load config file at {CONFIG_PATH}, error: {e}");
+            return;
+        }
+    };
+
+    if let Err(e) = check_correct(&config) {
+        println!("Found error in config ({e}), aborting");
+        return;
+    }
 
     time_guardian::run(config)
 }
