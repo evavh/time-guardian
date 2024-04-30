@@ -11,6 +11,7 @@ use crate::user_management::{exists, is_active, list_users, logout};
 mod notification;
 mod user_management;
 
+pub const CONFIG_PATH: &str = "/etc/time-guardian/config.toml";
 const STATUS_PATH: &str = "/var/lib/time-guardian/status.toml";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -80,7 +81,7 @@ impl Counter {
     }
 }
 
-pub fn run(config: &Config) -> ! {
+pub fn run(mut config: Config) -> ! {
     let users: Vec<_> = config
         .total_per_day
         .keys()
@@ -106,6 +107,15 @@ pub fn run(config: &Config) -> ! {
         if counter.is_outdated() {
             println!("New day, resetting");
             counter = Counter::new(&users);
+
+            let new_config: Config = confy::load_path(CONFIG_PATH).unwrap();
+            config = match check_correct(&new_config) {
+                Ok(()) => new_config,
+                Err(e) => {
+                    println!("New config has errors ({e}), not applying");
+                    config
+                }
+            }
         }
 
         thread::sleep(Duration::from_secs(1));
@@ -142,12 +152,16 @@ pub fn run(config: &Config) -> ! {
     }
 }
 
-pub fn check_correct(config: &Config) {
+pub fn check_correct(config: &Config) -> Result<(), String> {
     let Config { total_per_day, .. } = config;
 
     for user in total_per_day.keys() {
-        assert!(exists(user), "Error in config: user {user} does not exist");
+        if !exists(user) {
+            return Err(format!("Error in config: user {user} does not exist"));
+        };
     }
+
+    Ok(())
 }
 
 pub(crate) fn initialize_counting(users: &[String]) -> HashMap<String, usize> {
