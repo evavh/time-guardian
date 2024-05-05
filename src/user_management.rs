@@ -34,11 +34,8 @@ pub(crate) fn is_active(user: &str) -> bool {
         .unwrap();
 
     let err = std::str::from_utf8(&output.stderr).unwrap();
-    if !err.is_empty() {
-        assert!(
-            err.contains("is not logged in or lingering"),
-            "Unknown loginctl error, output: {output:?}"
-        );
+    if !err.is_empty() && !err.contains("is not logged in or lingering") {
+        eprintln!("Unknown loginctl error, user: {user}, output: {output:?}");
     }
     let state = std::str::from_utf8(&output.stdout).unwrap();
 

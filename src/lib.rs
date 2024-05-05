@@ -133,7 +133,7 @@ pub fn run(mut config: Config) -> ! {
                 },
 
                 Err(e) => {
-                    println!("Couldn't load config, error: {e}");
+                    eprintln!("Couldn't load config, error: {e}");
                     old_config
                 }
             };
