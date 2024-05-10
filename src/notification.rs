@@ -1,18 +1,19 @@
 use std::process::Command;
 use std::string::FromUtf8Error;
-use std::sync::Arc;
 
 use color_eyre::{eyre::Context, Result};
 use thiserror::Error;
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug)]
 enum Error {
     #[error("Couldn't parse loginctl output: {0}")]
     Parse(String),
     #[error("Io error")]
-    Io(#[from] Arc<std::io::Error>),
+    Io(#[from] std::io::Error),
     #[error("Utf8 parsing error")]
     Utf8(#[from] FromUtf8Error),
+    #[error("User {0} not found")]
+    UserNotFound(String),
 }
 
 pub(crate) fn notify_user(target_name: &str, text: &str) {
@@ -23,24 +24,22 @@ pub(crate) fn notify_user(target_name: &str, text: &str) {
 }
 
 fn notify_user_err(target_name: &str, text: &str) -> Result<()> {
-    let users = get_logged_in_users().wrap_err("Couldn't get logged in users")?;
+    let users =
+        get_logged_in_users().wrap_err("Couldn't get logged in users")?;
 
-    let user = users
-        .iter()
-        .cloned()
-        .find(|(_uid, name)| name == target_name);
+    let user = users.iter().find(|(_uid, name)| name == target_name);
 
-    match user {
-        Some((uid, name)) => notify(&name, &uid, text),
-        None => {
-            eprintln!("Couldn't find uid for {target_name}, not logged in?")
-        }
-    };
+    let (uid, name) = user
+        .ok_or(Error::UserNotFound(target_name.to_owned()))
+        .wrap_err("Couldn't find uid for user, not logged in?")?;
+
+    notify(name, uid, text);
+
     Ok(())
 }
 
 fn get_logged_in_users() -> Result<Vec<(String, String)>, Error> {
-    let users = Command::new("loginctl").output().map_err(Arc::new)?.stdout;
+    let users = Command::new("loginctl").output()?.stdout;
     let users = String::from_utf8(users)?;
     let users: Result<Vec<(String, String)>, _> = users
         .lines()
@@ -51,9 +50,7 @@ fn get_logged_in_users() -> Result<Vec<(String, String)>, Error> {
                 x.nth(1)
                     .ok_or(Error::Parse(x.clone().collect()))?
                     .to_string(),
-                x.next()
-                    .ok_or(Error::Parse(x.collect()))?
-                    .to_string(),
+                x.next().ok_or(Error::Parse(x.collect()))?.to_string(),
             ))
         })
         .collect();
