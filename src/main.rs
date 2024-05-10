@@ -1,18 +1,13 @@
+use color_eyre::{eyre::Context, Result};
 use time_guardian::{check_correct, Config, CONFIG_PATH};
 
-fn main() {
-    let config: Config = match confy::load_path(CONFIG_PATH) {
-        Ok(config) => config,
-        Err(e) => {
-            eprintln!("Couldn't load config file at {CONFIG_PATH}, error: {e}");
-            return;
-        }
-    };
+fn main() -> Result<()> {
+    color_eyre::install()?;
 
-    if let Err(e) = check_correct(&config) {
-        eprintln!("Found error in config ({e}), aborting");
-        return;
-    }
+    let config: Config = confy::load_path(CONFIG_PATH)
+        .wrap_err("Couldn't load config file at {CONFIG_PATH}")?;
+
+    check_correct(&config).wrap_err("Found error in config")?;
 
     time_guardian::run(config)
 }

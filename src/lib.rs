@@ -5,6 +5,7 @@ use std::{collections::HashMap, fs};
 
 use chrono::{Local, NaiveDate};
 use serde_derive::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::user_management::{exists, is_active, list_users, logout};
 
@@ -143,7 +144,7 @@ pub fn run(mut config: Config) -> ! {
 
         for (user, allowed_seconds) in &config.total_per_day {
             if is_active(user) {
-                *counter.spent_seconds.get_mut(user).unwrap() += 1;
+                *counter.spent_seconds.get_mut(user).expect("Initialized from the hashmap we iterate over, should be in there") += 1;
 
                 if counter.spent_seconds[user] >= *allowed_seconds {
                     logout(user);
@@ -175,12 +176,18 @@ pub fn run(mut config: Config) -> ! {
     }
 }
 
-pub fn check_correct(config: &Config) -> Result<(), String> {
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("User {0} doesn't exist")]
+    UserDoesntExist(String),
+}
+
+pub fn check_correct(config: &Config) -> Result<(), Error> {
     let Config { total_per_day, .. } = config;
 
     for user in total_per_day.keys() {
         if !exists(user) {
-            return Err(format!("Error in config: user {user} does not exist"));
+            return Err(Error::UserDoesntExist(user.to_owned()));
         };
     }
 
