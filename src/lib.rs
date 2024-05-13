@@ -25,8 +25,16 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
+        let users = match list_users() {
+            Ok(users) => users,
+            Err(err) => {
+                eprintln!("Couldn't list users in home: {err}");
+                vec![]
+            }
+        };
+
         let total_per_day: HashMap<String, usize> =
-            list_users().into_iter().map(|user| (user, 86400)).collect();
+            users.into_iter().map(|user| (user, 86400)).collect();
         let short_warning_seconds = 30;
         let long_warning_seconds = 300;
 
