@@ -113,14 +113,14 @@ pub fn run(mut config: Config) -> ! {
             }
         }
         Err(err) => {
-            dbg!(err);
+            eprintln!("Error while loading counter: {err}, resetting");
             Counter::new(&users)
         }
     };
 
     match counter.store() {
         Ok(()) => (),
-        Err(e) => panic!("Error while trying to store counter: {e}"),
+        Err(err) => eprintln!("Error while trying to store counter: {err}"),
     };
 
     loop {
@@ -133,16 +133,16 @@ pub fn run(mut config: Config) -> ! {
             config = match confy::load_path(CONFIG_PATH) {
                 Ok(new_config) => match check_correct(&new_config) {
                     Ok(()) => new_config,
-                    Err(e) => {
+                    Err(err) => {
                         println!(
-                            "New config has errors ({e}), using old config"
+                            "New config has errors ({err}), using old config"
                         );
                         old_config
                     }
                 },
 
-                Err(e) => {
-                    eprintln!("Couldn't load config, error: {e}");
+                Err(err) => {
+                    eprintln!("Couldn't load config, error: {err}");
                     old_config
                 }
             };

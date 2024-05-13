@@ -62,6 +62,6 @@ fn notify(username: &str, uid: &str, text: &str) {
 
     match Command::new("sh").arg("-c").arg(command).output() {
         Ok(_) => (),
-        Err(e) => eprintln!("Error while notifying {username}: {e}"),
+        Err(err) => eprintln!("Error while notifying {username}: {err}"),
     }
 }
