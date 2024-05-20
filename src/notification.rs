@@ -19,7 +19,7 @@ enum Error {
 pub(crate) fn notify_user(target_name: &str, text: &str) {
     match notify_user_err(target_name, text) {
         Ok(()) => (),
-        Err(err) => eprintln!("{err}"),
+        Err(err) => eprintln!("{err:?}"),
     }
 }
 

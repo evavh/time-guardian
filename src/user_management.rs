@@ -54,7 +54,9 @@ pub(crate) fn logout(user: &str) {
 
 pub(crate) fn exists(user: &str) -> bool {
     match fs::read_to_string("/etc/passwd") {
-        Ok(passwd) => passwd.contains(&format!("{user}:")),
+        Ok(passwd) => passwd
+            .lines()
+            .any(|line| line.starts_with(&format!("{user}:"))),
         // Default to user exists
         Err(err) => {
             eprintln!("Couldn't read /etc/passwd: {err}");
@@ -68,7 +70,7 @@ pub(crate) fn is_active(user: &str) -> bool {
         Ok(res) => res,
         // Default to active
         Err(err) => {
-            eprintln!("{err}");
+            eprintln!("Active checking encountered an error {err}, defaulting to active");
             true
         }
     }

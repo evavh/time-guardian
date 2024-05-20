@@ -4,6 +4,8 @@ use std::time::Duration;
 use std::{collections::HashMap, fs};
 
 use chrono::{Local, NaiveDate};
+use color_eyre::eyre::Context;
+use color_eyre::Result;
 use serde_derive::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -12,7 +14,9 @@ use crate::user_management::{exists, is_active, list_users, logout};
 mod notification;
 mod user_management;
 
-pub const CONFIG_PATH: &str = "/etc/time-guardian/config.toml";
+const CONFIG_PATH: &str = "/etc/time-guardian/config.toml";
+const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config.toml";
+const FALLBACK_CONFIG_PATH: &str = "/etc/time-guardian/fallback-config.toml";
 const STATUS_PATH: &str = "/var/lib/time-guardian/status.toml";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,7 +32,7 @@ impl Default for Config {
         let users = match list_users() {
             Ok(users) => users,
             Err(err) => {
-                eprintln!("Couldn't list users in home: {err}");
+                eprintln!("Couldn't list users in home: {err:?}");
                 vec![]
             }
         };
@@ -97,7 +101,23 @@ impl Counter {
     }
 }
 
-pub fn run(mut config: Config) -> ! {
+pub fn run() -> ! {
+    let mut config = match load_config(CONFIG_PATH) {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!(
+                "Error while initially loading config, using previous config\nCause: {err:?}"
+            );
+            match load_config(PREV_CONFIG_PATH) {
+                Ok(config) => config,
+                Err(err) => {
+                    eprintln!("Error while loading previous config on startup, using fallback\nCause: {err:?}");
+                    dbg!(load_config(FALLBACK_CONFIG_PATH).unwrap())
+                }
+            }
+        }
+    };
+
     let users: Vec<_> = config
         .total_per_day
         .keys()
@@ -130,22 +150,16 @@ pub fn run(mut config: Config) -> ! {
             counter = Counter::new(&users);
 
             let old_config = config;
-            config = match confy::load_path(CONFIG_PATH) {
-                Ok(new_config) => match check_correct(&new_config) {
-                    Ok(()) => new_config,
-                    Err(err) => {
-                        println!(
-                            "New config has errors ({err}), using old config"
-                        );
-                        old_config
-                    }
-                },
-
+            config = match load_config(CONFIG_PATH) {
+                Ok(new_config) => {
+                    store_config(&new_config, PREV_CONFIG_PATH);
+                    new_config
+                }
                 Err(err) => {
-                    eprintln!("Couldn't load config, error: {err}");
+                    eprintln!("Error loading config: {err:?}");
                     old_config
                 }
-            };
+            }
         }
 
         thread::sleep(Duration::from_secs(1));
@@ -182,6 +196,33 @@ pub fn run(mut config: Config) -> ! {
             }
         }
     }
+}
+
+fn store_config(config: &Config, path: &str) {
+    let serialized = match toml::to_string(config) {
+        Ok(res) => res,
+        Err(err) => {
+            eprintln!("Couldn't serialize config for path {path}: {err}");
+            return;
+        }
+    };
+    match fs::write(path, serialized) {
+        Ok(_) => (),
+        Err(err) => {
+            eprintln!("Couldn't store config to disk for path {path}: {err}")
+        }
+    }
+}
+
+fn load_config(path: &str) -> Result<Config> {
+    let data = fs::read_to_string(path)
+        .wrap_err(format!("Couldn't read config from file {path}"))?;
+    let new_config: Config = toml::from_str(&data)
+        .wrap_err(format!("Couldn't deserialize file {path}"))?;
+
+    check_correct(&new_config).wrap_err(format!("New config has errors"))?;
+
+    Ok(new_config)
 }
 
 #[derive(Error, Debug)]
