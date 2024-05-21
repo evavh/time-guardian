@@ -14,17 +14,38 @@ use crate::user_management::{exists, is_active, list_users, logout};
 mod notification;
 mod user_management;
 
-const CONFIG_PATH: &str = "/etc/time-guardian/config.toml";
-const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config.toml";
-const FALLBACK_CONFIG_PATH: &str = "/etc/time-guardian/fallback-config.toml";
-const STATUS_PATH: &str = "/var/lib/time-guardian/status.toml";
+const CONFIG_PATH: &str = "/etc/time-guardian/config-dev.toml";
+const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config-dev.toml";
+const FALLBACK_CONFIG_PATH: &str =
+    "/etc/time-guardian/fallback-config-dev.toml";
+const TEMPLATE_CONFIG_PATH: &str =
+    "/etc/time-guardian/template-config-dev.toml";
+const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Config {
+    pub user: HashMap<String, UserConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct UserConfig {
+    // TODO: make warnings a user-editable setting
     pub short_warning_seconds: usize,
     pub long_warning_seconds: usize,
-    pub total_per_day: HashMap<String, usize>,
-    // TODO: make this a user setting
+    pub allowed_seconds: usize,
+    pub rampup: Option<Rampup>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct Rampup {
+    pub speed: Speed,
+    pub start_date: NaiveDate,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Speed {
+    ConstantSeconds(isize),
+    Percentage(f32),
 }
 
 impl Default for Config {
@@ -33,20 +54,28 @@ impl Default for Config {
             Ok(users) => users,
             Err(err) => {
                 eprintln!("Couldn't list users in home: {err:?}");
-                vec![]
+                vec!["example_user".to_owned()]
             }
         };
 
-        let total_per_day: HashMap<String, usize> =
-            users.into_iter().map(|user| (user, 86400)).collect();
-        let short_warning_seconds = 30;
-        let long_warning_seconds = 300;
+        let rampup = Rampup {
+            speed: Speed::ConstantSeconds(1),
+            start_date: NaiveDate::from_ymd_opt(2024, 5, 1)
+                .expect("Date exists"),
+        };
+        let user_config = UserConfig {
+            short_warning_seconds: 30,
+            long_warning_seconds: 300,
+            allowed_seconds: 86400,
+            rampup: Some(rampup),
+        };
 
-        Self {
-            short_warning_seconds,
-            long_warning_seconds,
-            total_per_day,
-        }
+        let per_user: HashMap<String, UserConfig> = users
+            .into_iter()
+            .map(|user| (user, user_config.clone()))
+            .collect();
+
+        Self { user: per_user }
     }
 }
 
@@ -102,6 +131,14 @@ impl Counter {
 }
 
 pub fn run() -> ! {
+    if match load_config(TEMPLATE_CONFIG_PATH) {
+        Ok(config) => config != Config::default(),
+        Err(_) => true,
+    } {
+        println!("Writing new template config");
+        store_config(&Config::default(), TEMPLATE_CONFIG_PATH);
+    }
+
     let mut config = match load_config(CONFIG_PATH) {
         Ok(config) => config,
         Err(err) => {
@@ -112,17 +149,13 @@ pub fn run() -> ! {
                 Ok(config) => config,
                 Err(err) => {
                     eprintln!("Error while loading previous config on startup, using fallback\nCause: {err:?}");
-                    dbg!(load_config(FALLBACK_CONFIG_PATH).unwrap())
+                    load_config(FALLBACK_CONFIG_PATH).unwrap()
                 }
             }
         }
     };
 
-    let users: Vec<_> = config
-        .total_per_day
-        .keys()
-        .map(ToString::to_string)
-        .collect();
+    let users: Vec<_> = config.user.keys().map(ToString::to_string).collect();
 
     let mut counter = match Counter::load() {
         Ok(counter) => {
@@ -164,18 +197,23 @@ pub fn run() -> ! {
 
         thread::sleep(Duration::from_secs(1));
 
-        for (user, allowed_seconds) in &config.total_per_day {
+        for (user, config) in &config.user {
             if is_active(user) {
                 *counter.spent_seconds.get_mut(user).expect("Initialized from the hashmap we iterate over, should be in there") += 1;
+                println!(
+                    "{user} spent {} out of {}",
+                    counter.spent_seconds[user], config.allowed_seconds
+                );
 
-                if counter.spent_seconds[user] >= *allowed_seconds {
+                if counter.spent_seconds[user] >= config.allowed_seconds {
                     logout(user);
                     // This user doesn't need to be accounted for right now
                     continue;
                 }
 
-                let seconds_left =
-                    allowed_seconds.saturating_sub(counter.spent_seconds[user]);
+                let seconds_left = config
+                    .allowed_seconds
+                    .saturating_sub(counter.spent_seconds[user]);
 
                 counter
                     .store()
@@ -232,9 +270,9 @@ pub enum Error {
 }
 
 pub fn check_correct(config: &Config) -> Result<(), Error> {
-    let Config { total_per_day, .. } = config;
+    let Config { user: per_user } = config;
 
-    for user in total_per_day.keys() {
+    for user in per_user.keys() {
         if !exists(user) {
             return Err(Error::UserDoesntExist(user.to_owned()));
         };
