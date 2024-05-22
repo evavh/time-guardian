@@ -1,16 +1,11 @@
-use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
-use std::{collections::HashMap, fs};
 
-use chrono::{Local, NaiveDate};
-use color_eyre::Result;
-use serde_derive::{Deserialize, Serialize};
-
-use crate::user_management::{is_active, logout};
 use crate::config::Config;
+use crate::user_management::{is_active, logout};
 
 mod config;
+mod counter;
 mod notification;
 mod user_management;
 
@@ -21,57 +16,6 @@ const FALLBACK_CONFIG_PATH: &str =
 const TEMPLATE_CONFIG_PATH: &str =
     "/etc/time-guardian/template-config-dev.toml";
 const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
-
-#[derive(Serialize, Deserialize)]
-struct Counter {
-    date: NaiveDate,
-    spent_seconds: HashMap<String, usize>,
-}
-
-impl Counter {
-    fn new(users: &[String]) -> Self {
-        Self {
-            date: Local::now().date_naive(),
-            spent_seconds: initialize_counting(users),
-        }
-    }
-
-    fn is_outdated(&self) -> bool {
-        Local::now().date_naive() != self.date
-    }
-
-    fn load() -> Result<Self, String> {
-        let toml = match fs::read_to_string(STATUS_PATH) {
-            Ok(str) => str,
-            Err(err) => return Err(err.to_string()),
-        };
-        let counter: Result<Counter, _> = toml::from_str(&toml);
-
-        match counter {
-            Ok(res) => Ok(res),
-            Err(err) => Err(format!("{err}")),
-        }
-    }
-
-    fn store(&self) -> Result<(), std::io::Error> {
-        let toml = toml::to_string(&self)
-            .expect("Serializing failed, probably an error in toml");
-
-        if !PathBuf::from(STATUS_PATH)
-            .parent()
-            .expect("This path should have a parent")
-            .exists()
-        {
-            std::fs::create_dir_all(
-                PathBuf::from(STATUS_PATH)
-                    .parent()
-                    .expect("This path should have a parent"),
-            )?;
-        }
-        fs::write(STATUS_PATH, toml)?;
-        Ok(())
-    }
-}
 
 pub fn run() -> ! {
     if match Config::load(TEMPLATE_CONFIG_PATH) {
@@ -100,17 +44,17 @@ pub fn run() -> ! {
 
     let users: Vec<_> = config.users().map(ToString::to_string).collect();
 
-    let mut counter = match Counter::load() {
+    let mut counter = match counter::Counter::load() {
         Ok(counter) => {
             if counter.is_outdated() {
-                Counter::new(&users)
+                counter::Counter::new(&users)
             } else {
                 counter
             }
         }
         Err(err) => {
             eprintln!("Error while loading counter: {err}, resetting");
-            Counter::new(&users)
+            counter::Counter::new(&users)
         }
     };
 
@@ -123,7 +67,7 @@ pub fn run() -> ! {
         // Reset on new day
         if counter.is_outdated() {
             println!("New day, resetting");
-            counter = Counter::new(&users);
+            counter = counter::Counter::new(&users);
 
             let old_config = config;
             config = match Config::load(CONFIG_PATH) {
@@ -177,11 +121,4 @@ pub fn run() -> ! {
             }
         }
     }
-}
-
-pub(crate) fn initialize_counting(users: &[String]) -> HashMap<String, usize> {
-    users
-        .iter()
-        .map(|user| ((*user).to_string(), 0_usize))
-        .collect()
 }
