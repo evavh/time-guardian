@@ -4,13 +4,13 @@ use std::time::Duration;
 use std::{collections::HashMap, fs};
 
 use chrono::{Local, NaiveDate};
-use color_eyre::eyre::Context;
 use color_eyre::Result;
 use serde_derive::{Deserialize, Serialize};
-use thiserror::Error;
 
-use crate::user_management::{exists, is_active, list_users, logout};
+use crate::user_management::{is_active, logout};
+use crate::config::Config;
 
+mod config;
 mod notification;
 mod user_management;
 
@@ -21,63 +21,6 @@ const FALLBACK_CONFIG_PATH: &str =
 const TEMPLATE_CONFIG_PATH: &str =
     "/etc/time-guardian/template-config-dev.toml";
 const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Config {
-    pub user: HashMap<String, UserConfig>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct UserConfig {
-    // TODO: make warnings a user-editable setting
-    pub short_warning_seconds: usize,
-    pub long_warning_seconds: usize,
-    pub allowed_seconds: usize,
-    pub rampup: Option<Rampup>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct Rampup {
-    pub speed: Speed,
-    pub start_date: NaiveDate,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum Speed {
-    ConstantSeconds(isize),
-    Percentage(f32),
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        let users = match list_users() {
-            Ok(users) => users,
-            Err(err) => {
-                eprintln!("Couldn't list users in home: {err:?}");
-                vec!["example_user".to_owned()]
-            }
-        };
-
-        let rampup = Rampup {
-            speed: Speed::ConstantSeconds(1),
-            start_date: NaiveDate::from_ymd_opt(2024, 5, 1)
-                .expect("Date exists"),
-        };
-        let user_config = UserConfig {
-            short_warning_seconds: 30,
-            long_warning_seconds: 300,
-            allowed_seconds: 86400,
-            rampup: Some(rampup),
-        };
-
-        let per_user: HashMap<String, UserConfig> = users
-            .into_iter()
-            .map(|user| (user, user_config.clone()))
-            .collect();
-
-        Self { user: per_user }
-    }
-}
 
 #[derive(Serialize, Deserialize)]
 struct Counter {
@@ -131,31 +74,31 @@ impl Counter {
 }
 
 pub fn run() -> ! {
-    if match load_config(TEMPLATE_CONFIG_PATH) {
-        Ok(config) => config != Config::default(),
+    if match Config::load(TEMPLATE_CONFIG_PATH) {
+        Ok(config) => config != config::Config::default(),
         Err(_) => true,
     } {
         println!("Writing new template config");
-        store_config(&Config::default(), TEMPLATE_CONFIG_PATH);
+        Config::default().store(TEMPLATE_CONFIG_PATH);
     }
 
-    let mut config = match load_config(CONFIG_PATH) {
+    let mut config = match Config::load(CONFIG_PATH) {
         Ok(config) => config,
         Err(err) => {
             eprintln!(
                 "Error while initially loading config, using previous config\nCause: {err:?}"
             );
-            match load_config(PREV_CONFIG_PATH) {
+            match Config::load(PREV_CONFIG_PATH) {
                 Ok(config) => config,
                 Err(err) => {
                     eprintln!("Error while loading previous config on startup, using fallback\nCause: {err:?}");
-                    load_config(FALLBACK_CONFIG_PATH).unwrap()
+                    Config::load(FALLBACK_CONFIG_PATH).unwrap()
                 }
             }
         }
     };
 
-    let users: Vec<_> = config.user.keys().map(ToString::to_string).collect();
+    let users: Vec<_> = config.users().map(ToString::to_string).collect();
 
     let mut counter = match Counter::load() {
         Ok(counter) => {
@@ -183,9 +126,9 @@ pub fn run() -> ! {
             counter = Counter::new(&users);
 
             let old_config = config;
-            config = match load_config(CONFIG_PATH) {
+            config = match Config::load(CONFIG_PATH) {
                 Ok(new_config) => {
-                    store_config(&new_config, PREV_CONFIG_PATH);
+                    Config::store(&new_config, PREV_CONFIG_PATH);
                     new_config
                 }
                 Err(err) => {
@@ -197,7 +140,7 @@ pub fn run() -> ! {
 
         thread::sleep(Duration::from_secs(1));
 
-        for (user, config) in &config.user {
+        for (user, config) in config.iter() {
             if is_active(user) {
                 *counter.spent_seconds.get_mut(user).expect("Initialized from the hashmap we iterate over, should be in there") += 1;
                 println!(
@@ -234,51 +177,6 @@ pub fn run() -> ! {
             }
         }
     }
-}
-
-fn store_config(config: &Config, path: &str) {
-    let serialized = match toml::to_string(config) {
-        Ok(res) => res,
-        Err(err) => {
-            eprintln!("Couldn't serialize config for path {path}: {err}");
-            return;
-        }
-    };
-    match fs::write(path, serialized) {
-        Ok(_) => (),
-        Err(err) => {
-            eprintln!("Couldn't store config to disk for path {path}: {err}")
-        }
-    }
-}
-
-fn load_config(path: &str) -> Result<Config> {
-    let data = fs::read_to_string(path)
-        .wrap_err(format!("Couldn't read config from file {path}"))?;
-    let new_config: Config = toml::from_str(&data)
-        .wrap_err(format!("Couldn't deserialize file {path}"))?;
-
-    check_correct(&new_config).wrap_err(format!("New config has errors"))?;
-
-    Ok(new_config)
-}
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("User {0} doesn't exist")]
-    UserDoesntExist(String),
-}
-
-pub fn check_correct(config: &Config) -> Result<(), Error> {
-    let Config { user: per_user } = config;
-
-    for user in per_user.keys() {
-        if !exists(user) {
-            return Err(Error::UserDoesntExist(user.to_owned()));
-        };
-    }
-
-    Ok(())
 }
 
 pub(crate) fn initialize_counting(users: &[String]) -> HashMap<String, usize> {
