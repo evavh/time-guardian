@@ -15,7 +15,7 @@ pub enum Error {
     UserDoesntExist(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Config(HashMap<String, UserConfig>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -104,7 +104,7 @@ impl Config {
 
     pub fn check_correct(&self) -> Result<(), Error> {
         for user in self.users() {
-            if !exists(user) {
+            if !exists(&user) {
                 return Err(Error::UserDoesntExist(user.to_owned()));
             };
         }
@@ -112,8 +112,8 @@ impl Config {
         Ok(())
     }
 
-    pub fn users(&self) -> hash_map::Keys<'_, String, UserConfig> {
-        self.0.keys()
+    pub fn users(&self) -> impl Iterator<Item = String> + '_ {
+        self.0.keys().map(ToString::to_string)
     }
 
     pub fn iter(&self) -> hash_map::Iter<'_, String, UserConfig> {

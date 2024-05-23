@@ -16,9 +16,9 @@ pub(crate) struct Counter {
 }
 
 impl Counter {
-    pub(crate) fn new(users: &[String]) -> Self {
+    pub(crate) fn new(users: impl Iterator<Item=String>) -> Self {
         let spent_seconds =
-            users.iter().map(|user| ((*user).to_string(), 0)).collect();
+            users.map(|user| (user, 0)).collect();
 
         Self {
             date: Local::now().date_naive(),
