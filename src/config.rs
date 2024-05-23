@@ -16,6 +16,7 @@ pub enum Error {
 pub struct Config(HashMap<String, UserConfig>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[allow(clippy::module_name_repetitions)]
 pub struct UserConfig {
     // TODO: make warnings a user-editable setting
     pub short_warning_seconds: usize,
@@ -76,7 +77,7 @@ impl Config {
 
         new_config
             .check_correct()
-            .wrap_err(format!("New config has errors"))?;
+            .wrap_err("New config has errors")?;
 
         Ok(new_config)
     }
@@ -90,11 +91,11 @@ impl Config {
             }
         };
         match fs::write(path, serialized) {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 eprintln!(
                     "Couldn't store config to disk for path {path}: {err}"
-                )
+                );
             }
         }
     }
@@ -102,7 +103,7 @@ impl Config {
     pub fn check_correct(&self) -> Result<(), Error> {
         for user in self.users() {
             if !exists(&user) {
-                return Err(Error::UserDoesntExist(user.to_owned()));
+                return Err(Error::UserDoesntExist(user.clone()));
             };
         }
 
