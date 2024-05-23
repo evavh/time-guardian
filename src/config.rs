@@ -4,10 +4,7 @@ use chrono::NaiveDate;
 use color_eyre::{eyre::Context, Result};
 use serde_derive::{Deserialize, Serialize};
 
-use std::{
-    collections::{hash_map, HashMap},
-    fs,
-};
+use std::{collections::HashMap, fs};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -116,7 +113,7 @@ impl Config {
         self.0.keys().map(ToString::to_string)
     }
 
-    pub fn iter(&self) -> hash_map::Iter<'_, String, UserConfig> {
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &UserConfig)> + '_ {
         self.0.iter()
     }
 }
