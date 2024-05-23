@@ -6,6 +6,14 @@ use serde_derive::{Deserialize, Serialize};
 
 use std::{collections::HashMap, fs};
 
+const CONFIG_PATH: &str = "/etc/time-guardian/config-dev.toml";
+const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config-dev.toml";
+const FALLBACK_CONFIG_PATH: &str =
+    "/etc/time-guardian/fallback-config-dev.toml";
+const TEMPLATE_CONFIG_PATH: &str =
+    "/etc/time-guardian/template-config-dev.toml";
+const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("User {0} doesn't exist")]
@@ -69,6 +77,47 @@ impl Default for Config {
 }
 
 impl Config {
+    pub(crate) fn initialize_from_files() -> Self {
+        if match Config::load(TEMPLATE_CONFIG_PATH) {
+            Ok(config) => config != config::Config::default(),
+            Err(_) => true,
+        } {
+            println!("Writing new template config");
+            Config::default().store(TEMPLATE_CONFIG_PATH);
+        }
+
+        match Config::load(CONFIG_PATH) {
+            Ok(config) => config,
+            Err(err) => {
+                eprintln!(
+                    "Error while initially loading config, using previous config\nCause: {err:?}"
+                );
+                match Config::load(PREV_CONFIG_PATH) {
+                    Ok(config) => config,
+                    Err(err) => {
+                        eprintln!("Error while loading previous config on startup, using fallback\nCause: {err:?}");
+                        Config::load(FALLBACK_CONFIG_PATH).unwrap()
+                    }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn reload(&mut self) {
+        let old_config = self.clone();
+
+        *self = match Config::load(CONFIG_PATH) {
+            Ok(new_config) => {
+                Config::store(&new_config, PREV_CONFIG_PATH);
+                new_config
+            }
+            Err(err) => {
+                eprintln!("Error loading config: {err:?}");
+                old_config
+            }
+        }
+    }
+
     pub fn load(path: &str) -> Result<Self> {
         let data = fs::read_to_string(path)
             .wrap_err(format!("Couldn't read config from file {path}"))?;
