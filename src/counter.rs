@@ -7,7 +7,9 @@ use chrono::NaiveDate;
 use color_eyre::Result;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::STATUS_PATH;
+use crate::config::Config;
+
+const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Counter {
@@ -16,9 +18,31 @@ pub(crate) struct Counter {
 }
 
 impl Counter {
-    pub(crate) fn new(users: impl Iterator<Item=String>) -> Self {
-        let spent_seconds =
-            users.map(|user| (user, 0)).collect();
+    pub(crate) fn initialize(config: &Config) -> Counter {
+        let counter = match Counter::load() {
+            Ok(counter) => {
+                if counter.is_outdated() {
+                    Counter::new(config.users())
+                } else {
+                    counter
+                }
+            }
+            Err(err) => {
+                eprintln!("Error while loading counter: {err}, resetting");
+                Counter::new(config.users())
+            }
+        };
+
+        match counter.store() {
+            Ok(()) => (),
+            Err(err) => eprintln!("Error while trying to store counter: {err}"),
+        };
+
+        counter
+    }
+
+    pub(crate) fn new(users: impl Iterator<Item = String>) -> Self {
+        let spent_seconds = users.map(|user| (user, 0)).collect();
 
         Self {
             date: Local::now().date_naive(),

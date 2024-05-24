@@ -12,7 +12,6 @@ const FALLBACK_CONFIG_PATH: &str =
     "/etc/time-guardian/fallback-config-dev.toml";
 const TEMPLATE_CONFIG_PATH: &str =
     "/etc/time-guardian/template-config-dev.toml";
-const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -79,7 +78,7 @@ impl Default for Config {
 impl Config {
     pub(crate) fn initialize_from_files() -> Self {
         if match Config::load(TEMPLATE_CONFIG_PATH) {
-            Ok(config) => config != config::Config::default(),
+            Ok(config) => config != Self::default(),
             Err(_) => true,
         } {
             println!("Writing new template config");
