@@ -85,4 +85,12 @@ impl Counter {
         fs::write(STATUS_PATH, toml)?;
         Ok(())
     }
+
+    pub(crate) fn increment(&mut self, user: &str) {
+        let count = self
+            .spent_seconds
+            .get_mut(user)
+            .expect("Initialized from the hashmap, should be in there");
+        *count += 1;
+    }
 }

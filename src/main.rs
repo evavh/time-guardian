@@ -5,6 +5,8 @@ use crate::config::Config;
 use crate::counter::Counter;
 use crate::user_management::{is_active, logout};
 
+use self::config::UserConfig;
+
 mod config;
 mod counter;
 mod notification;
@@ -12,7 +14,6 @@ mod user_management;
 
 fn main() {
     let mut config = Config::initialize_from_files();
-
     let mut counter = Counter::initialize(&config);
 
     loop {
@@ -27,11 +28,7 @@ fn main() {
 
         for (user, user_config) in config.iter() {
             if is_active(user) {
-                let count = counter
-                    .spent_seconds
-                    .get_mut(user)
-                    .expect("Initialized from the hashmap, should be in there");
-                *count += 1;
+                counter.increment(user);
 
                 println!(
                     "{user} spent {} out of {}",
@@ -54,11 +51,7 @@ fn main() {
     }
 }
 
-fn issue_warnings(
-    counter: &Counter,
-    config: &config::UserConfig,
-    user: &String,
-) {
+fn issue_warnings(counter: &Counter, config: &UserConfig, user: &str) {
     // TODO: make short and long warnings different
     // (and multiple possible)
 
