@@ -15,6 +15,7 @@ mod user_management;
 fn main() {
     let mut config = Config::initialize_from_files();
     let mut counter = Counter::initialize(&config);
+    config.apply_rampup();
 
     loop {
         if counter.is_outdated() {
@@ -22,6 +23,7 @@ fn main() {
             counter = Counter::new(config.users());
 
             config.reload();
+            config.apply_rampup();
         }
 
         thread::sleep(Duration::from_secs(1));

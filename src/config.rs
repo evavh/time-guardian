@@ -1,6 +1,6 @@
 use crate::user_management::{exists, list_users};
 
-use chrono::NaiveDate;
+use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
 use serde_derive::{Deserialize, Serialize};
 
@@ -26,9 +26,9 @@ pub struct Config(HashMap<String, UserConfig>);
 #[allow(clippy::module_name_repetitions)]
 pub struct UserConfig {
     // TODO: make warnings a user-editable setting
-    pub short_warning_seconds: usize,
-    pub long_warning_seconds: usize,
-    pub allowed_seconds: usize,
+    pub short_warning_seconds: u32,
+    pub long_warning_seconds: u32,
+    pub allowed_seconds: u32,
     pub rampup: Option<Rampup>,
 }
 
@@ -40,7 +40,7 @@ pub struct Rampup {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Speed {
-    ConstantSeconds(isize),
+    ConstantSeconds(i32),
     Percentage(f32),
 }
 
@@ -165,4 +165,42 @@ impl Config {
     pub fn iter(&self) -> impl Iterator<Item = (&String, &UserConfig)> + '_ {
         self.0.iter()
     }
+
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&String, &mut UserConfig)> + '_ {
+        self.0.iter_mut()
+    }
+
+    pub(crate) fn apply_rampup(&mut self) {
+        for (_user, user_config) in self.iter_mut() {
+            if let Some(rampup) = &user_config.rampup {
+                let today = Local::now().date_naive();
+                if today > rampup.start_date {
+                    let n_days: i32 = (today - rampup.start_date)
+                        .num_days()
+                        .try_into()
+                        .expect("n_days < 11Myears");
+                    let old_time: u32 = user_config.allowed_seconds;
+
+                    let new_time: u32 = match rampup.speed {
+                        Speed::ConstantSeconds(s) => {
+                            old_time.saturating_add_signed(n_days * s)
+                        }
+                        Speed::Percentage(p) => {
+                            add_percentage(old_time, n_days, p)
+                        }
+                    };
+                    user_config.allowed_seconds = new_time;
+                }
+            }
+        }
+    }
+}
+
+fn add_percentage(old_time: u32, n_days: i32, percentage: f32) -> u32 {
+    let unrounded: f32 =
+        old_time as f32 * (1.0 + percentage / 100.0).powi(n_days);
+
+    unrounded.round() as u32
 }

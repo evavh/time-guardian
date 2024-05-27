@@ -14,7 +14,7 @@ const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Counter {
     pub(crate) date: NaiveDate,
-    pub(crate) spent_seconds: HashMap<String, usize>,
+    pub(crate) spent_seconds: HashMap<String, u32>,
 }
 
 impl Counter {
