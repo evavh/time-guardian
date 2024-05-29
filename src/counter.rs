@@ -9,7 +9,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::config::Config;
 
-const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
+const STATUS_PATH: &str = "/var/lib/time-guardian/status.toml";
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Counter {

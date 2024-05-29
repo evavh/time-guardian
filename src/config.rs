@@ -4,14 +4,13 @@ use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
 use serde_derive::{Deserialize, Serialize};
 
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, path::PathBuf};
 
-const CONFIG_PATH: &str = "/etc/time-guardian/config-dev.toml";
-const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config-dev.toml";
-const FALLBACK_CONFIG_PATH: &str =
-    "/etc/time-guardian/fallback-config-dev.toml";
-const TEMPLATE_CONFIG_PATH: &str =
-    "/etc/time-guardian/template-config-dev.toml";
+const CONFIG_PATH: &str = "/etc/time-guardian/config.toml";
+const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config.toml";
+const FALLBACK_CONFIG_PATH: &str = "/etc/time-guardian/fallback-config.toml";
+const TEMPLATE_CONFIG_PATH: &str = "/etc/time-guardian/template-config.toml";
+const RAMPEDUP_PATH: &str = "/var/lib/time-guardian/rampedup.toml";
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -138,6 +137,7 @@ impl Config {
                 return;
             }
         };
+        // TODO: create path if doesn't exist
         match fs::write(path, serialized) {
             Ok(()) => (),
             Err(err) => {
@@ -195,6 +195,31 @@ impl Config {
                 }
             }
         }
+    }
+
+    pub(crate) fn store_rampedup(&self) -> Result<(), std::io::Error> {
+        let rampedup: HashMap<String, u32> = self
+            .0
+            .iter()
+            .map(|(user, user_config)| (user.to_owned(), user_config.allowed_seconds))
+            .collect();
+
+        let toml = toml::to_string(&rampedup)
+            .expect("Serializing failed, probably an error in toml");
+
+        if !PathBuf::from(RAMPEDUP_PATH)
+            .parent()
+            .expect("This path should have a parent")
+            .exists()
+        {
+            std::fs::create_dir_all(
+                PathBuf::from(RAMPEDUP_PATH)
+                    .parent()
+                    .expect("This path should have a parent"),
+            )?;
+        }
+        fs::write(RAMPEDUP_PATH, toml)?;
+        Ok(())
     }
 }
 

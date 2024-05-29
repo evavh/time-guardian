@@ -16,14 +16,16 @@ fn main() {
     let mut config = Config::initialize_from_files();
     let mut counter = Counter::initialize(&config);
     config.apply_rampup();
+    config.store_rampedup().unwrap();
 
     loop {
         if counter.is_outdated() {
-            println!("New day, resetting");
+            eprintln!("New day, resetting");
             counter = Counter::new(config.users());
 
             config.reload();
             config.apply_rampup();
+            config.store_rampedup().unwrap();
         }
 
         thread::sleep(Duration::from_secs(1));
