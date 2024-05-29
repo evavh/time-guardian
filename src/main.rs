@@ -1,5 +1,8 @@
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
+
+use serde::Serialize;
 
 use crate::config::Config;
 use crate::counter::Counter;
@@ -16,7 +19,7 @@ fn main() {
     let mut config = Config::initialize_from_files();
     let mut counter = Counter::initialize(&config);
     config.apply_rampup();
-    config.store_rampedup().unwrap();
+    config.store_rampedup();
 
     loop {
         if counter.is_outdated() {
@@ -25,7 +28,7 @@ fn main() {
 
             config.reload();
             config.apply_rampup();
-            config.store_rampedup().unwrap();
+            config.store_rampedup();
         }
 
         thread::sleep(Duration::from_secs(1));
@@ -45,9 +48,7 @@ fn main() {
                     continue;
                 }
 
-                counter
-                    .store()
-                    .expect("This worked before starting, and should work now");
+                counter.store();
 
                 issue_warnings(&counter, user_config, user);
             }
@@ -71,4 +72,26 @@ fn issue_warnings(counter: &Counter, config: &UserConfig, user: &str) {
             &format!("You will be logged out in {seconds_left} seconds!",),
         );
     }
+}
+
+fn store_as_toml(
+    object: &impl Serialize,
+    path: &str,
+) -> Result<(), std::io::Error> {
+    let toml = toml::to_string(&object)
+        .expect("Serializing failed, probably an error in toml");
+
+    if !PathBuf::from(path)
+        .parent()
+        .expect("This path should have a parent")
+        .exists()
+    {
+        std::fs::create_dir_all(
+            PathBuf::from(path)
+                .parent()
+                .expect("This path should have a parent"),
+        )?;
+    }
+    std::fs::write(path, toml)?;
+    Ok(())
 }

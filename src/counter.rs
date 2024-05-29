@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
 
 use chrono::Local;
 use chrono::NaiveDate;
@@ -33,11 +32,7 @@ impl Counter {
             }
         };
 
-        match counter.store() {
-            Ok(()) => (),
-            Err(err) => eprintln!("Error while trying to store counter: {err}"),
-        };
-
+        counter.store();
         counter
     }
 
@@ -67,23 +62,11 @@ impl Counter {
         }
     }
 
-    pub(crate) fn store(&self) -> Result<(), std::io::Error> {
-        let toml = toml::to_string(&self)
-            .expect("Serializing failed, probably an error in toml");
-
-        if !PathBuf::from(STATUS_PATH)
-            .parent()
-            .expect("This path should have a parent")
-            .exists()
-        {
-            std::fs::create_dir_all(
-                PathBuf::from(STATUS_PATH)
-                    .parent()
-                    .expect("This path should have a parent"),
-            )?;
-        }
-        fs::write(STATUS_PATH, toml)?;
-        Ok(())
+    pub(crate) fn store(&self) {
+        match crate::store_as_toml(&self, STATUS_PATH) {
+            Ok(()) => (),
+            Err(err) => eprintln!("Error while trying to store counter: {err}"),
+        };
     }
 
     pub(crate) fn increment(&mut self, user: &str) {

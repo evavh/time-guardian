@@ -4,7 +4,7 @@ use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
 use serde_derive::{Deserialize, Serialize};
 
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs};
 
 const CONFIG_PATH: &str = "/etc/time-guardian/config.toml";
 const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config.toml";
@@ -130,22 +130,10 @@ impl Config {
     }
 
     pub fn store(&self, path: &str) {
-        let serialized = match toml::to_string(&self) {
-            Ok(res) => res,
-            Err(err) => {
-                eprintln!("Couldn't serialize config for path {path}: {err}");
-                return;
-            }
-        };
-        // TODO: create path if doesn't exist
-        match fs::write(path, serialized) {
+        match crate::store_as_toml(&self, path) {
             Ok(()) => (),
-            Err(err) => {
-                eprintln!(
-                    "Couldn't store config to disk for path {path}: {err}"
-                );
-            }
-        }
+            Err(err) => eprintln!("Error while trying to store config: {err}"),
+        };
     }
 
     pub fn check_correct(&self) -> Result<(), Error> {
@@ -197,29 +185,21 @@ impl Config {
         }
     }
 
-    pub(crate) fn store_rampedup(&self) -> Result<(), std::io::Error> {
+    pub(crate) fn store_rampedup(&self) {
         let rampedup: HashMap<String, u32> = self
             .0
             .iter()
-            .map(|(user, user_config)| (user.to_owned(), user_config.allowed_seconds))
+            .map(|(user, user_config)| {
+                (user.to_owned(), user_config.allowed_seconds)
+            })
             .collect();
 
-        let toml = toml::to_string(&rampedup)
-            .expect("Serializing failed, probably an error in toml");
-
-        if !PathBuf::from(RAMPEDUP_PATH)
-            .parent()
-            .expect("This path should have a parent")
-            .exists()
-        {
-            std::fs::create_dir_all(
-                PathBuf::from(RAMPEDUP_PATH)
-                    .parent()
-                    .expect("This path should have a parent"),
-            )?;
-        }
-        fs::write(RAMPEDUP_PATH, toml)?;
-        Ok(())
+        match crate::store_as_toml(&rampedup, RAMPEDUP_PATH) {
+            Ok(()) => (),
+            Err(err) => {
+                eprintln!("Error while trying to store rampedup: {err}")
+            }
+        };
     }
 }
 
