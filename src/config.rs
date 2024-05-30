@@ -31,10 +31,30 @@ pub struct UserConfig {
     pub rampup: Option<Rampup>,
 }
 
+impl UserConfig {
+    pub fn clamp_rampup(mut self) -> Self {
+        let new_rampup = self.rampup.map(Rampup::clamp_percentage);
+        self.rampup = new_rampup;
+        self
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Rampup {
     pub speed: Speed,
     pub start_date: NaiveDate,
+}
+
+impl Rampup {
+    pub fn clamp_percentage(mut self) -> Self {
+        let new_speed = match &self.speed {
+            Speed::Percentage(p) => Speed::Percentage(p.clamp(-100.0, 100.0)),
+            other => other.clone(),
+        };
+
+        self.speed = new_speed;
+        self
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -122,6 +142,7 @@ impl Config {
         let new_config: Self = toml::from_str(&data)
             .wrap_err(format!("Couldn't deserialize file {path}"))?;
 
+        let new_config = new_config.fix_values();
         new_config
             .check_correct()
             .wrap_err("New config has errors")?;
@@ -136,7 +157,17 @@ impl Config {
         };
     }
 
-    pub fn check_correct(&self) -> Result<(), Error> {
+    fn fix_values(mut self) -> Self {
+        Self(
+            self.iter_mut()
+                .map(|(user, user_config)| {
+                    (user.to_owned(), user_config.clone().clamp_rampup())
+                })
+                .collect(),
+        )
+    }
+
+    fn check_correct(&self) -> Result<(), Error> {
         for user in self.users() {
             if !exists(&user) {
                 return Err(Error::UserDoesntExist(user.clone()));
@@ -197,12 +228,15 @@ impl Config {
         match crate::store_as_toml(&rampedup, RAMPEDUP_PATH) {
             Ok(()) => (),
             Err(err) => {
-                eprintln!("Error while trying to store rampedup: {err}")
+                eprintln!("Error while trying to store rampedup: {err}");
             }
         };
     }
 }
 
+#[allow(clippy::cast_precision_loss)] // don't need > 23 bits precision
+#[allow(clippy::cast_possible_truncation)] // new time < 8000 years
+#[allow(clippy::cast_sign_loss)] // if percentage <= 100, res > 0
 fn add_percentage(old_time: u32, n_days: i32, percentage: f32) -> u32 {
     let unrounded: f32 =
         old_time as f32 * (1.0 + percentage / 100.0).powi(n_days);
