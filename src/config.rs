@@ -48,7 +48,7 @@ impl Rampup {
     pub fn clamp_percentage(mut self) -> Self {
         let new_speed = match &self.speed {
             Speed::Percentage(p) => Speed::Percentage(p.clamp(-100.0, 100.0)),
-            other => other.clone(),
+            other @Speed::ConstantSeconds(_) => other.clone(),
         };
 
         self.speed = new_speed;
@@ -160,7 +160,7 @@ impl Config {
         Self(
             self.into_iter()
                 .map(|(user, user_config)| {
-                    (user.to_owned(), user_config.clone().clamp_rampup())
+                    (user.clone(), user_config.clone().clamp_rampup())
                 })
                 .collect(),
         )
