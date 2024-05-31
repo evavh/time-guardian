@@ -16,9 +16,8 @@ mod notification;
 mod user_management;
 
 fn main() {
-    let mut config = Config::initialize_from_files();
+    let mut config = Config::initialize_from_files().apply_rampup();
     let mut counter = Counter::initialize(&config);
-    config.apply_rampup();
     config.store_rampedup();
 
     loop {
@@ -26,8 +25,7 @@ fn main() {
             eprintln!("New day, resetting");
             counter = Counter::new(config.users());
 
-            config.reload();
-            config.apply_rampup();
+            config = config.reload().apply_rampup();
             config.store_rampedup();
         }
 
@@ -35,7 +33,7 @@ fn main() {
 
         for (user, user_config) in config.iter() {
             if is_active(user) {
-                counter.increment(user);
+                counter = counter.increment(user);
 
                 println!(
                     "{user} spent {} out of {}",

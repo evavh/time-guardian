@@ -69,11 +69,12 @@ impl Counter {
         };
     }
 
-    pub(crate) fn increment(&mut self, user: &str) {
+    pub(crate) fn increment(mut self, user: &str) -> Self {
         let count = self
             .spent_seconds
             .get_mut(user)
             .expect("Initialized from the hashmap, should be in there");
         *count += 1;
+        self
     }
 }

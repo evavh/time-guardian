@@ -33,8 +33,7 @@ pub struct UserConfig {
 
 impl UserConfig {
     pub fn clamp_rampup(mut self) -> Self {
-        let new_rampup = self.rampup.map(Rampup::clamp_percentage);
-        self.rampup = new_rampup;
+        self.rampup = self.rampup.map(Rampup::clamp_percentage);
         self
     }
 }
@@ -121,10 +120,10 @@ impl Config {
         }
     }
 
-    pub(crate) fn reload(&mut self) {
-        let old_config = self.clone();
+    pub(crate) fn reload(self) -> Self {
+        let old_config = self;
 
-        *self = match Config::load(CONFIG_PATH) {
+        match Config::load(CONFIG_PATH) {
             Ok(new_config) => {
                 Config::store(&new_config, PREV_CONFIG_PATH);
                 new_config
@@ -157,9 +156,9 @@ impl Config {
         };
     }
 
-    fn fix_values(mut self) -> Self {
+    fn fix_values(self) -> Self {
         Self(
-            self.iter_mut()
+            self.into_iter()
                 .map(|(user, user_config)| {
                     (user.to_owned(), user_config.clone().clamp_rampup())
                 })
@@ -185,35 +184,38 @@ impl Config {
         self.0.iter()
     }
 
-    pub fn iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = (&String, &mut UserConfig)> + '_ {
-        self.0.iter_mut()
+    pub fn into_iter(self) -> impl Iterator<Item = (String, UserConfig)> {
+        self.0.into_iter()
     }
 
-    pub(crate) fn apply_rampup(&mut self) {
-        for (_user, user_config) in self.iter_mut() {
-            if let Some(rampup) = &user_config.rampup {
-                let today = Local::now().date_naive();
-                if today > rampup.start_date {
-                    let n_days: i32 = (today - rampup.start_date)
-                        .num_days()
-                        .try_into()
-                        .expect("n_days < 11Myears");
-                    let old_time: u32 = user_config.allowed_seconds;
+    pub(crate) fn apply_rampup(self) -> Self {
+        Self(
+            self.into_iter()
+                .map(|(user, mut user_config)| {
+                    if let Some(rampup) = &user_config.rampup {
+                        let today = Local::now().date_naive();
+                        if today > rampup.start_date {
+                            let n_days: i32 = (today - rampup.start_date)
+                                .num_days()
+                                .try_into()
+                                .expect("n_days < 11Myears");
+                            let old_time: u32 = user_config.allowed_seconds;
 
-                    let new_time: u32 = match rampup.speed {
-                        Speed::ConstantSeconds(s) => {
-                            old_time.saturating_add_signed(n_days * s)
+                            let new_time: u32 = match rampup.speed {
+                                Speed::ConstantSeconds(s) => {
+                                    old_time.saturating_add_signed(n_days * s)
+                                }
+                                Speed::Percentage(p) => {
+                                    add_percentage(old_time, n_days, p)
+                                }
+                            };
+                            user_config.allowed_seconds = new_time;
                         }
-                        Speed::Percentage(p) => {
-                            add_percentage(old_time, n_days, p)
-                        }
-                    };
-                    user_config.allowed_seconds = new_time;
-                }
-            }
-        }
+                    }
+                    (user, user_config)
+                })
+                .collect(),
+        )
     }
 
     pub(crate) fn store_rampedup(&self) {
