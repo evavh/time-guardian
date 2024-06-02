@@ -4,21 +4,24 @@ use std::time::Duration;
 
 use serde::Serialize;
 
-use crate::config::Config;
+use crate::config::{Config, UserConfig};
 use crate::counter::Counter;
 use crate::user_management::{is_active, logout};
-
-use self::config::UserConfig;
 
 mod config;
 mod counter;
 mod notification;
 mod user_management;
 
+const BREAK_IDLE_THRESHOLD: u64 = 10;
+
 fn main() {
     let mut config = Config::initialize_from_files().apply_rampup();
     let mut counter = Counter::initialize(&config);
     config.store_rampedup();
+
+    let mut break_enforcer = break_enforcer::Api::new();
+    let mut retries = 0;
 
     loop {
         if counter.is_outdated() {
@@ -32,7 +35,12 @@ fn main() {
         thread::sleep(Duration::from_secs(1));
 
         for (user, user_config) in config.iter() {
-            if is_active(user) {
+            // Default to 0 idle = active
+            let idle_time = get_idle_time(&mut break_enforcer, &mut retries);
+
+            if is_active(user)
+                && idle_time < Duration::from_secs(BREAK_IDLE_THRESHOLD)
+            {
                 counter = counter.increment(user);
 
                 println!(
@@ -50,6 +58,33 @@ fn main() {
 
                 issue_warnings(&counter, user_config, user);
             }
+        }
+    }
+}
+
+fn get_idle_time(
+    api_connection: &mut Result<break_enforcer::Api, break_enforcer::Error>,
+    retries: &mut usize,
+) -> Duration {
+    match api_connection {
+        Ok(ref mut break_enforcer) => match break_enforcer.idle_since() {
+            Ok(time) => time,
+            Err(err) => {
+                if *retries < 3 {
+                    eprintln!("Idle time reading failed: {err}");
+                    *retries += 1
+                }
+                *api_connection = break_enforcer::Api::new();
+                Duration::from_secs(0)
+            }
+        },
+        Err(err) => {
+            if *retries < 3 {
+                eprintln!("Previous break enforcer connection failed: {err}");
+                *retries += 1
+            }
+            *api_connection = break_enforcer::Api::new();
+            Duration::from_secs(0)
         }
     }
 }
