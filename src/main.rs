@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
@@ -23,6 +23,8 @@ fn main() {
     let mut break_enforcer = break_enforcer::Api::new();
     let mut retries = 0;
 
+    let mut now = Instant::now();
+
     loop {
         if counter.is_outdated() {
             eprintln!("New day, resetting");
@@ -33,6 +35,8 @@ fn main() {
         }
 
         thread::sleep(Duration::from_secs(1));
+        let elapsed = Instant::now() - now;
+        now = Instant::now();
 
         for (user, user_config) in config.iter() {
             // Default to 0 idle = active
@@ -41,14 +45,15 @@ fn main() {
             if is_active(user)
                 && idle_time < Duration::from_secs(BREAK_IDLE_THRESHOLD)
             {
-                counter = counter.increment(user);
+                counter = counter.add(user, elapsed);
 
                 println!(
-                    "{user} spent {} out of {}",
-                    counter.spent_seconds[user], user_config.allowed_seconds
+                    "{user} spent {:.1?} out of {:?}",
+                    counter.spent[user],
+                    user_config.allowed
                 );
 
-                if counter.spent_seconds[user] >= user_config.allowed_seconds {
+                if counter.spent[user] >= user_config.allowed {
                     logout(user);
                     // This user doesn't need to be accounted for right now
                     continue;
@@ -75,7 +80,7 @@ fn get_idle_time(
                     *retries += 1
                 }
                 *api_connection = break_enforcer::Api::new();
-                Duration::from_secs(0)
+                Duration::default()
             }
         },
         Err(err) => {
@@ -84,7 +89,7 @@ fn get_idle_time(
                 *retries += 1
             }
             *api_connection = break_enforcer::Api::new();
-            Duration::from_secs(0)
+            Duration::default()
         }
     }
 }
@@ -93,16 +98,14 @@ fn issue_warnings(counter: &Counter, config: &UserConfig, user: &str) {
     // TODO: make short and long warnings different
     // (and multiple possible)
 
-    let seconds_left = config
-        .allowed_seconds
-        .saturating_sub(counter.spent_seconds[user]);
+    let time_left = config.allowed.saturating_sub(counter.spent[user]);
 
-    if seconds_left == config.short_warning_seconds
-        || seconds_left == config.long_warning_seconds
-    {
+    if time_left == config.short_warning || time_left == config.long_warning {
         notification::notify_user(
             user,
-            &format!("You will be logged out in {seconds_left} seconds!",),
+            &format!(
+                "You will be logged out in {time_left:.0?} seconds!",
+            ),
         );
     }
 }

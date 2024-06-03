@@ -4,13 +4,15 @@ use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
 use serde_derive::{Deserialize, Serialize};
 
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, time::Duration};
 
-const CONFIG_PATH: &str = "/etc/time-guardian/config.toml";
-const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config.toml";
-const FALLBACK_CONFIG_PATH: &str = "/etc/time-guardian/fallback-config.toml";
-const TEMPLATE_CONFIG_PATH: &str = "/etc/time-guardian/template-config.toml";
-const RAMPEDUP_PATH: &str = "/var/lib/time-guardian/rampedup.toml";
+const CONFIG_PATH: &str = "/etc/time-guardian/config-dev.toml";
+const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config-dev.toml";
+const FALLBACK_CONFIG_PATH: &str =
+    "/etc/time-guardian/fallback-config-dev.toml";
+const TEMPLATE_CONFIG_PATH: &str =
+    "/etc/time-guardian/template-config-dev.toml";
+const RAMPEDUP_PATH: &str = "/var/lib/time-guardian/rampedup-dev.toml";
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -25,9 +27,9 @@ pub struct Config(HashMap<String, UserConfig>);
 #[allow(clippy::module_name_repetitions)]
 pub struct UserConfig {
     // TODO: make warnings a user-editable setting
-    pub short_warning_seconds: u32,
-    pub long_warning_seconds: u32,
-    pub allowed_seconds: u32,
+    pub short_warning: Duration,
+    pub long_warning: Duration,
+    pub allowed: Duration,
     pub rampup: Option<Rampup>,
 }
 
@@ -78,9 +80,9 @@ impl Default for Config {
                 .expect("Date exists"),
         };
         let user_config = UserConfig {
-            short_warning_seconds: 30,
-            long_warning_seconds: 300,
-            allowed_seconds: 86400,
+            short_warning: Duration::from_secs(30),
+            long_warning: Duration::from_secs(300),
+            allowed: Duration::from_secs(86400),
             rampup: Some(rampup),
         };
 
@@ -199,17 +201,21 @@ impl Config {
                                 .num_days()
                                 .try_into()
                                 .expect("n_days < 11Myears");
-                            let old_time: u32 = user_config.allowed_seconds;
+                            let old_seconds: u32 = user_config
+                                .allowed
+                                .as_secs()
+                                .try_into()
+                                .expect("allowed time < 22Myears");
 
-                            let new_time: u32 = match rampup.speed {
-                                Speed::ConstantSeconds(s) => {
-                                    old_time.saturating_add_signed(n_days * s)
-                                }
+                            let new_seconds: u32 = match rampup.speed {
+                                Speed::ConstantSeconds(s) => old_seconds
+                                    .saturating_add_signed(n_days * s),
                                 Speed::Percentage(p) => {
-                                    add_percentage(old_time, n_days, p)
+                                    add_percentage(old_seconds, n_days, p)
                                 }
                             };
-                            user_config.allowed_seconds = new_time;
+                            user_config.allowed =
+                                Duration::from_secs(new_seconds.into());
                         }
                     }
                     (user, user_config)
@@ -223,7 +229,14 @@ impl Config {
             .0
             .iter()
             .map(|(user, user_config)| {
-                (user.to_owned(), user_config.allowed_seconds)
+                (
+                    user.to_owned(),
+                    user_config
+                        .allowed
+                        .as_secs()
+                        .try_into()
+                        .expect("allowed < 22Myears"),
+                )
             })
             .collect();
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
+use std::time::Duration;
 
 use chrono::Local;
 use chrono::NaiveDate;
@@ -8,12 +9,12 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::config::Config;
 
-const STATUS_PATH: &str = "/var/lib/time-guardian/status.toml";
+const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Counter {
     pub(crate) date: NaiveDate,
-    pub(crate) spent_seconds: HashMap<String, u32>,
+    pub(crate) spent: HashMap<String, Duration>,
 }
 
 impl Counter {
@@ -37,11 +38,11 @@ impl Counter {
     }
 
     pub(crate) fn new(users: impl Iterator<Item = String>) -> Self {
-        let spent_seconds = users.map(|user| (user, 0)).collect();
+        let spent = users.map(|user| (user, Duration::default())).collect();
 
         Self {
             date: Local::now().date_naive(),
-            spent_seconds,
+            spent,
         }
     }
 
@@ -69,12 +70,13 @@ impl Counter {
         };
     }
 
-    pub(crate) fn increment(mut self, user: &str) -> Self {
+    pub(crate) fn add(mut self, user: &str, duration: Duration) -> Self {
         let count = self
-            .spent_seconds
+            .spent
             .get_mut(user)
             .expect("Initialized from the hashmap, should be in there");
-        *count += 1;
+
+        *count += duration;
         self
     }
 }
