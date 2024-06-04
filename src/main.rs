@@ -1,8 +1,5 @@
-use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant};
-
-use serde::Serialize;
 
 use crate::config::{Config, UserConfig};
 use crate::counter::Counter;
@@ -10,6 +7,7 @@ use crate::user_management::{is_active, logout};
 
 mod config;
 mod counter;
+mod file_io;
 mod notification;
 mod user_management;
 
@@ -49,8 +47,7 @@ fn main() {
 
                 println!(
                     "{user} spent {:.1?} out of {:?}",
-                    counter.spent[user],
-                    user_config.allowed
+                    counter.spent[user], user_config.allowed
                 );
 
                 if counter.spent[user] >= user_config.allowed {
@@ -103,31 +100,7 @@ fn issue_warnings(counter: &Counter, config: &UserConfig, user: &str) {
     if time_left == config.short_warning || time_left == config.long_warning {
         notification::notify_user(
             user,
-            &format!(
-                "You will be logged out in {time_left:.0?} seconds!",
-            ),
+            &format!("You will be logged out in {time_left:.0?} seconds!",),
         );
     }
-}
-
-fn store_as_toml(
-    object: &impl Serialize,
-    path: &str,
-) -> Result<(), std::io::Error> {
-    let toml = toml::to_string(&object)
-        .expect("Serializing failed, probably an error in toml");
-
-    if !PathBuf::from(path)
-        .parent()
-        .expect("This path should have a parent")
-        .exists()
-    {
-        std::fs::create_dir_all(
-            PathBuf::from(path)
-                .parent()
-                .expect("This path should have a parent"),
-        )?;
-    }
-    std::fs::write(path, toml)?;
-    Ok(())
 }

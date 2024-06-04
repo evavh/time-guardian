@@ -1,18 +1,13 @@
-use crate::user_management::{exists, list_users};
+use crate::{
+    file_io,
+    user_management::{exists, list_users},
+};
 
 use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
 use serde_derive::{Deserialize, Serialize};
 
 use std::{collections::HashMap, fs, time::Duration};
-
-const CONFIG_PATH: &str = "/etc/time-guardian/config-dev.toml";
-const PREV_CONFIG_PATH: &str = "/etc/time-guardian/prev-config-dev.toml";
-const FALLBACK_CONFIG_PATH: &str =
-    "/etc/time-guardian/fallback-config-dev.toml";
-const TEMPLATE_CONFIG_PATH: &str =
-    "/etc/time-guardian/template-config-dev.toml";
-const RAMPEDUP_PATH: &str = "/var/lib/time-guardian/rampedup-dev.toml";
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -97,25 +92,25 @@ impl Default for Config {
 
 impl Config {
     pub(crate) fn initialize_from_files() -> Self {
-        if match Config::load(TEMPLATE_CONFIG_PATH) {
+        if match Config::load(file_io::path::TEMPLATE_CONFIG) {
             Ok(config) => config != Self::default(),
             Err(_) => true,
         } {
             println!("Writing new template config");
-            Config::default().store(TEMPLATE_CONFIG_PATH);
+            Config::default().store(file_io::path::TEMPLATE_CONFIG);
         }
 
-        match Config::load(CONFIG_PATH) {
+        match Config::load(file_io::path::CONFIG) {
             Ok(config) => config,
             Err(err) => {
                 eprintln!(
                     "Error while initially loading config, using previous config\nCause: {err:?}"
                 );
-                match Config::load(PREV_CONFIG_PATH) {
+                match Config::load(file_io::path::PREV_CONFIG) {
                     Ok(config) => config,
                     Err(err) => {
                         eprintln!("Error while loading previous config on startup, using fallback\nCause: {err:?}");
-                        Config::load(FALLBACK_CONFIG_PATH).unwrap()
+                        Config::load(file_io::path::FALLBACK_CONFIG).unwrap()
                     }
                 }
             }
@@ -125,9 +120,9 @@ impl Config {
     pub(crate) fn reload(self) -> Self {
         let old_config = self;
 
-        match Config::load(CONFIG_PATH) {
+        match Config::load(file_io::path::CONFIG) {
             Ok(new_config) => {
-                Config::store(&new_config, PREV_CONFIG_PATH);
+                Config::store(&new_config, file_io::path::PREV_CONFIG);
                 new_config
             }
             Err(err) => {
@@ -140,7 +135,7 @@ impl Config {
     pub fn load(path: &str) -> Result<Self> {
         let data = fs::read_to_string(path)
             .wrap_err(format!("Couldn't read config from file {path}"))?;
-        let new_config: Self = toml::from_str(&data)
+        let new_config: Self = file_io::from_str(&data)
             .wrap_err(format!("Couldn't deserialize file {path}"))?;
 
         let new_config = new_config.fix_values();
@@ -152,7 +147,7 @@ impl Config {
     }
 
     pub fn store(&self, path: &str) {
-        match crate::store_as_toml(&self, path) {
+        match file_io::store(&self, path) {
             Ok(()) => (),
             Err(err) => eprintln!("Error while trying to store config: {err}"),
         };
@@ -240,7 +235,7 @@ impl Config {
             })
             .collect();
 
-        match crate::store_as_toml(&rampedup, RAMPEDUP_PATH) {
+        match file_io::store(&rampedup, file_io::path::RAMPEDUP) {
             Ok(()) => (),
             Err(err) => {
                 eprintln!("Error while trying to store rampedup: {err}");

@@ -8,8 +8,7 @@ use color_eyre::Result;
 use serde_derive::{Deserialize, Serialize};
 
 use crate::config::Config;
-
-const STATUS_PATH: &str = "/var/lib/time-guardian/status-dev.toml";
+use crate::file_io;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Counter {
@@ -51,11 +50,11 @@ impl Counter {
     }
 
     pub(crate) fn load() -> Result<Self, String> {
-        let toml = match fs::read_to_string(STATUS_PATH) {
+        let file_content = match fs::read_to_string(file_io::path::STATUS) {
             Ok(str) => str,
             Err(err) => return Err(err.to_string()),
         };
-        let counter: Result<Counter, _> = toml::from_str(&toml);
+        let counter: Result<Counter, _> = file_io::from_str(&file_content);
 
         match counter {
             Ok(res) => Ok(res),
@@ -64,7 +63,7 @@ impl Counter {
     }
 
     pub(crate) fn store(&self) {
-        match crate::store_as_toml(&self, STATUS_PATH) {
+        match file_io::store(&self, file_io::path::STATUS) {
             Ok(()) => (),
             Err(err) => eprintln!("Error while trying to store counter: {err}"),
         };
