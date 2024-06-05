@@ -1,7 +1,5 @@
-use crate::{
-    file_io,
-    user_management::{exists, list_users},
-};
+use crate::file_io;
+use crate::user;
 
 use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
@@ -61,7 +59,7 @@ pub enum Speed {
 
 impl Default for Config {
     fn default() -> Self {
-        let users = match list_users() {
+        let users = match user::list_users() {
             Ok(users) => users,
             Err(err) => {
                 eprintln!("Couldn't list users in home: {err:?}");
@@ -165,7 +163,7 @@ impl Config {
 
     fn check_correct(&self) -> Result<(), Error> {
         for user in self.users() {
-            if !exists(&user) {
+            if !user::exists(&user) {
                 return Err(Error::UserDoesntExist(user.clone()));
             };
         }
