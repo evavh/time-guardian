@@ -4,6 +4,7 @@ use crate::user;
 use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
 use serde_derive::{Deserialize, Serialize};
+use serde_with::{serde_as, DurationSecondsWithFrac};
 
 use std::{collections::HashMap, fs, time::Duration};
 
@@ -16,12 +17,16 @@ pub enum Error {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Config(HashMap<String, UserConfig>);
 
+#[serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
 pub struct UserConfig {
     // TODO: make warnings a user-editable setting
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub short_warning: Duration,
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub long_warning: Duration,
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub allowed: Duration,
     pub rampup: Option<Rampup>,
 }

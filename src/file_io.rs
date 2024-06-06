@@ -1,18 +1,18 @@
 use color_eyre::Result;
+use ron::{extensions::Extensions, ser::PrettyConfig};
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::PathBuf;
 
 pub(crate) mod path {
-    pub(crate) const STATUS: &str = "/var/lib/time-guardian/status-dev.toml";
-    pub(crate) const CONFIG: &str = "/etc/time-guardian/config-dev.toml";
+    pub(crate) const STATUS: &str = "/var/lib/time-guardian/status-dev.ron";
+    pub(crate) const CONFIG: &str = "/etc/time-guardian/config-dev.ron";
     pub(crate) const PREV_CONFIG: &str =
-        "/etc/time-guardian/prev-config-dev.toml";
+        "/etc/time-guardian/prev-config-dev.ron";
     pub(crate) const FALLBACK_CONFIG: &str =
-        "/etc/time-guardian/fallback-config-dev.toml";
+        "/etc/time-guardian/fallback-config-dev.ron";
     pub(crate) const TEMPLATE_CONFIG: &str =
-        "/etc/time-guardian/template-config-dev.toml";
-    pub(crate) const RAMPEDUP: &str =
-        "/var/lib/time-guardian/rampedup-dev.toml";
+        "/etc/time-guardian/template-config-dev.ron";
+    pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian/rampedup-dev.ron";
 }
 
 pub(crate) fn store(
@@ -38,9 +38,11 @@ pub(crate) fn store(
 }
 
 pub(crate) fn from_str<T: DeserializeOwned>(input: &str) -> Result<T> {
-    Ok(toml::from_str(input).map_err(|e| Box::new(e))?)
+    Ok(ron::from_str(input).map_err(|e| Box::new(e))?)
 }
 
 pub(crate) fn to_string<T: Serialize>(object: &T) -> Result<String> {
-    Ok(toml::to_string(object)?)
+    let extensions = Extensions::all();
+    let config = PrettyConfig::new().extensions(extensions);
+    Ok(ron::ser::to_string_pretty(object, config)?)
 }

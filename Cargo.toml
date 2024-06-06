@@ -14,3 +14,5 @@ serde_derive = "1.0.155"
 thiserror = "1.0.60"
 toml = "0.8.12"
 break-enforcer = { git = "https://github.com/evavh/break-enforcer-s" }
+ron = "0.8.1"
+serde_with = "3.8.1"

@@ -6,13 +6,16 @@ use chrono::Local;
 use chrono::NaiveDate;
 use color_eyre::Result;
 use serde_derive::{Deserialize, Serialize};
+use serde_with::{serde_as, DurationSecondsWithFrac};
 
 use crate::config::Config;
 use crate::file_io;
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Counter {
     pub(crate) date: NaiveDate,
+    #[serde_as(as = "HashMap<_, DurationSecondsWithFrac<f64>>")]
     pub(crate) spent: HashMap<String, Duration>,
 }
 
