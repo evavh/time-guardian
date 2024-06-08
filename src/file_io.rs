@@ -4,15 +4,15 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::path::PathBuf;
 
 pub(crate) mod path {
-    pub(crate) const STATUS: &str = "/var/lib/time-guardian/status-dev.ron";
-    pub(crate) const CONFIG: &str = "/etc/time-guardian/config-dev.ron";
+    pub(crate) const STATUS: &str = "/var/lib/time-guardian/status.ron";
+    pub(crate) const CONFIG: &str = "/etc/time-guardian/config.ron";
     pub(crate) const PREV_CONFIG: &str =
-        "/etc/time-guardian/prev-config-dev.ron";
+        "/etc/time-guardian/prev-config.ron";
     pub(crate) const FALLBACK_CONFIG: &str =
-        "/etc/time-guardian/fallback-config-dev.ron";
+        "/etc/time-guardian/fallback-config.ron";
     pub(crate) const TEMPLATE_CONFIG: &str =
-        "/etc/time-guardian/template-config-dev.ron";
-    pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian/rampedup-dev.ron";
+        "/etc/time-guardian/template-config.ron";
+    pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian/rampedup.ron";
 }
 
 pub(crate) fn store(
