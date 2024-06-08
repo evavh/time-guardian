@@ -188,6 +188,10 @@ impl Config {
         self.0.into_iter()
     }
 
+    pub fn allowed(&self, user: &str) -> Duration {
+        self.0[user].allowed
+    }
+
     pub(crate) fn apply_rampup(self) -> Self {
         Self(
             self.into_iter()
