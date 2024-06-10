@@ -55,7 +55,6 @@ pub(crate) fn load<T: DeserializeOwned>(path: &str) -> Result<T> {
 }
 
 pub(crate) fn from_str<T: DeserializeOwned>(input: &str) -> Result<T> {
-    dbg!(input);
     Ok(ron::from_str(input)?)
 }
 
