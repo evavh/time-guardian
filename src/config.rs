@@ -6,7 +6,7 @@ use color_eyre::{eyre::Context, Result};
 use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 
-use std::{collections::HashMap, fs, time::Duration};
+use std::{collections::HashMap, time::Duration};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -136,10 +136,7 @@ impl Config {
     }
 
     pub fn load(path: &str) -> Result<Self> {
-        let data = fs::read_to_string(path)
-            .wrap_err(format!("Couldn't read config from file {path}"))?;
-        let new_config: Self = file_io::from_str(&data)
-            .wrap_err(format!("Couldn't deserialize file {path}"))?;
+        let new_config: Self = file_io::load(path)?;
 
         let new_config = new_config.fix_values();
         new_config
@@ -224,30 +221,6 @@ impl Config {
                 })
                 .collect(),
         )
-    }
-
-    pub(crate) fn store_rampedup(&self) {
-        let rampedup: HashMap<String, u32> = self
-            .0
-            .iter()
-            .map(|(user, user_config)| {
-                (
-                    user.to_owned(),
-                    user_config
-                        .allowed
-                        .as_secs()
-                        .try_into()
-                        .expect("allowed < 22Myears"),
-                )
-            })
-            .collect();
-
-        match file_io::store(&rampedup, file_io::path::RAMPEDUP) {
-            Ok(()) => (),
-            Err(err) => {
-                eprintln!("Error while trying to store rampedup: {err}");
-            }
-        };
     }
 }
 

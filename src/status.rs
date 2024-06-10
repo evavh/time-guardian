@@ -20,9 +20,10 @@ fn get_spent(user: &str) -> Duration {
 
 pub(crate) fn status(user: &str) {
     let spent = get_spent(user);
-    let allowed = Config::load(file_io::path::CONFIG).unwrap().allowed(user);
+    let rampedup = Config::load(file_io::path::RAMPEDUP).unwrap();
+    let allowed = rampedup.allowed(user);
 
-    println!("time left: {}", format(allowed - spent));
+    println!("time left: {}", format(allowed.saturating_sub(spent)));
 }
 
 fn format(duration: Duration) -> String {

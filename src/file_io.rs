@@ -49,8 +49,14 @@ pub(crate) fn store(
     Ok(())
 }
 
+pub(crate) fn load<T: DeserializeOwned>(path: &str) -> Result<T> {
+    let data = std::fs::read_to_string(path)?;
+    from_str(&data)
+}
+
 pub(crate) fn from_str<T: DeserializeOwned>(input: &str) -> Result<T> {
-    Ok(ron::from_str(input).map_err(|e| Box::new(e))?)
+    dbg!(input);
+    Ok(ron::from_str(input)?)
 }
 
 pub(crate) fn to_string<T: Serialize>(object: &T) -> Result<String> {

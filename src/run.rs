@@ -5,6 +5,7 @@ use std::time::Instant;
 use crate::config::Config;
 use crate::config::UserConfig;
 use crate::counter::Counter;
+use crate::file_io::path;
 use crate::notification;
 use crate::user;
 use crate::BREAK_IDLE_THRESHOLD;
@@ -12,7 +13,7 @@ use crate::BREAK_IDLE_THRESHOLD;
 pub(crate) fn run() {
     let mut config = Config::initialize_from_files().apply_rampup();
     let mut counter = Counter::initialize(&config);
-    config.store_rampedup();
+    config.store(path::RAMPEDUP);
 
     let mut break_enforcer = break_enforcer::Api::new();
     let mut retries = 0;
@@ -25,7 +26,7 @@ pub(crate) fn run() {
             counter = Counter::new(config.users());
 
             config = config.reload().apply_rampup();
-            config.store_rampedup();
+            config.store(path::RAMPEDUP);
         }
 
         thread::sleep(Duration::from_secs(1));
