@@ -27,6 +27,9 @@ enum Command {
 }
 
 fn main() {
+    #[cfg(feature = "deploy")]
+    println!("Deploying");
+
     let cli = Cli::parse();
 
     match cli.command {
