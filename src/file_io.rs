@@ -5,25 +5,28 @@ use std::path::PathBuf;
 
 #[cfg(feature = "deploy")]
 pub(crate) mod path {
-    pub(crate) const STATUS: &str = "/var/lib/time-guardian/status.ron";
     pub(crate) const CONFIG: &str = "/etc/time-guardian/config.ron";
     pub(crate) const PREV_CONFIG: &str = "/etc/time-guardian/prev-config.ron";
     pub(crate) const FALLBACK_CONFIG: &str =
         "/etc/time-guardian/fallback-config.ron";
     pub(crate) const TEMPLATE_CONFIG: &str =
         "/etc/time-guardian/template-config.ron";
+
+    pub(crate) const STATUS: &str = "/var/lib/time-guardian/status.ron";
     pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian/rampedup.ron";
 }
 
 #[cfg(not(feature = "deploy"))]
 pub(crate) mod path {
-    pub(crate) const STATUS: &str = "/var/lib/time-guardian-dev/status.ron";
     pub(crate) const CONFIG: &str = "/etc/time-guardian-dev/config.ron";
-    pub(crate) const PREV_CONFIG: &str = "/etc/time-guardian-dev/prev-config.ron";
+    pub(crate) const PREV_CONFIG: &str =
+        "/etc/time-guardian-dev/prev-config.ron";
     pub(crate) const FALLBACK_CONFIG: &str =
         "/etc/time-guardian-dev/fallback-config.ron";
     pub(crate) const TEMPLATE_CONFIG: &str =
         "/etc/time-guardian-dev/template-config.ron";
+
+    pub(crate) const STATUS: &str = "/var/lib/time-guardian-dev/status.ron";
     pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian-dev/rampedup.ron";
 }
 

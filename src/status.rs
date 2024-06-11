@@ -5,17 +5,17 @@ use crate::{config::Config, counter::Counter, file_io};
 pub(crate) fn spent(user: &str) {
     let spent = get_spent(user).as_secs_f64();
 
-    println!("{spent}")
+    println!("{spent}");
 }
 
 fn get_spent(user: &str) -> Duration {
     let counter = Counter::load().unwrap();
-    let spent = if counter.is_outdated() {
+
+    if counter.is_outdated() {
         Duration::default()
     } else {
         counter.spent[user]
-    };
-    spent
+    }
 }
 
 pub(crate) fn status(user: &str) {

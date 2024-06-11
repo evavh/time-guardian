@@ -30,7 +30,7 @@ pub(crate) fn run() {
         }
 
         thread::sleep(Duration::from_secs(1));
-        let elapsed = Instant::now() - now;
+        let elapsed = now.elapsed();
         now = Instant::now();
 
         for (user, user_config) in config.iter() {
@@ -71,7 +71,7 @@ pub(crate) fn get_idle_time(
             Err(err) => {
                 if *retries < 3 {
                     eprintln!("Idle time reading failed: {err}");
-                    *retries += 1
+                    *retries += 1;
                 }
                 *api_connection = break_enforcer::Api::new();
                 Duration::default()
@@ -80,7 +80,7 @@ pub(crate) fn get_idle_time(
         Err(err) => {
             if *retries < 3 {
                 eprintln!("Previous break enforcer connection failed: {err}");
-                *retries += 1
+                *retries += 1;
             }
             *api_connection = break_enforcer::Api::new();
             Duration::default()
