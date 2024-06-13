@@ -7,6 +7,7 @@ mod notification;
 mod run;
 mod status;
 mod user;
+mod logging;
 
 const BREAK_IDLE_THRESHOLD: u64 = 10;
 
@@ -27,6 +28,7 @@ enum Command {
 }
 
 fn main() {
+    env_logger::init();
     let cli = Cli::parse();
 
     match cli.command {

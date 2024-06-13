@@ -10,6 +10,7 @@ use serde_with::{serde_as, DurationSecondsWithFrac};
 
 use crate::config::Config;
 use crate::file_io;
+use crate::logging::log_error;
 
 #[serde_as]
 #[derive(Serialize, Deserialize)]
@@ -66,10 +67,10 @@ impl Counter {
     }
 
     pub(crate) fn store(&self) {
-        match file_io::store(&self, file_io::path::STATUS) {
-            Ok(()) => (),
-            Err(err) => eprintln!("Error while trying to store counter: {err}"),
-        };
+        log_error(
+            file_io::store(&self, file_io::path::STATUS),
+            "Error while trying to store counter",
+        );
     }
 
     pub(crate) fn add(mut self, user: &str, duration: Duration) -> Self {

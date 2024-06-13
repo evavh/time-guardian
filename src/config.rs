@@ -1,4 +1,5 @@
 use crate::file_io;
+use crate::logging::log_error;
 use crate::user;
 
 use chrono::{Local, NaiveDate};
@@ -147,10 +148,10 @@ impl Config {
     }
 
     pub fn store(&self, path: &str) {
-        match file_io::store(&self, path) {
-            Ok(()) => (),
-            Err(err) => eprintln!("Error while trying to store config: {err}"),
-        };
+        log_error(
+            file_io::store(&self, path),
+            "Error while trying to store config",
+        );
     }
 
     fn fix_values(self) -> Self {

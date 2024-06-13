@@ -4,6 +4,8 @@ use std::string::FromUtf8Error;
 use color_eyre::{eyre::Context, Result};
 use thiserror::Error;
 
+use crate::logging::log_error;
+
 #[derive(Error, Debug)]
 enum Error {
     #[error("Couldn't parse loginctl output: {0}")]
@@ -17,10 +19,10 @@ enum Error {
 }
 
 pub(crate) fn notify_user(target_name: &str, text: &str) {
-    match notify_user_err(target_name, text) {
-        Ok(()) => (),
-        Err(err) => eprintln!("{err:?}"),
-    }
+    log_error(
+        notify_user_err(target_name, text),
+        &format!("Error while notifying user {target_name}"),
+    );
 }
 
 fn notify_user_err(target_name: &str, text: &str) -> Result<()> {

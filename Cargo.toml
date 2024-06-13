@@ -20,3 +20,5 @@ break-enforcer = { git = "https://github.com/evavh/break-enforcer-s" }
 ron = "0.8.1"
 serde_with = "3.8.1"
 clap = { version = "4.5.4", features = ["derive"] }
+env_logger = "0.11.3"
+log = "0.4.21"
