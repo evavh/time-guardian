@@ -62,8 +62,8 @@ fn get_logged_in_users() -> Result<Vec<(String, String)>, Error> {
 fn notify(username: &str, uid: &str, text: &str) {
     let command = format!("sudo -u {username} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{uid}/bus notify-send -t 5000 \"{text}\"");
 
-    match Command::new("sh").arg("-c").arg(command).output() {
-        Ok(_) => (),
-        Err(err) => eprintln!("Error while notifying {username}: {err}"),
-    }
+    log_error(
+        Command::new("sh").arg("-c").arg(command).output().map(|_| ()),
+        &format!("Error while notifying {username}"),
+    );
 }

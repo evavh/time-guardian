@@ -5,6 +5,7 @@ use std::time::Duration;
 use chrono::Local;
 use chrono::NaiveDate;
 use color_eyre::Result;
+use log::error;
 use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 
@@ -31,7 +32,7 @@ impl Counter {
                 }
             }
             Err(err) => {
-                eprintln!("Error while loading counter: {err}, resetting");
+                error!("Error while loading counter: {err}, resetting");
                 Counter::new(config.users())
             }
         };
@@ -53,17 +54,11 @@ impl Counter {
         Local::now().date_naive() != self.date
     }
 
-    pub(crate) fn load() -> Result<Self, String> {
-        let file_content = match fs::read_to_string(file_io::path::STATUS) {
-            Ok(str) => str,
-            Err(err) => return Err(err.to_string()),
-        };
+    pub(crate) fn load() -> Result<Self> {
+        let file_content = fs::read_to_string(file_io::path::STATUS)?;
         let counter: Result<Counter, _> = file_io::from_str(&file_content);
 
-        match counter {
-            Ok(res) => Ok(res),
-            Err(err) => Err(format!("{err}")),
-        }
+        Ok(counter?)
     }
 
     pub(crate) fn store(&self) {

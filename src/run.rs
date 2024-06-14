@@ -2,6 +2,8 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
+use log::{error, info, trace};
+
 use crate::config::Config;
 use crate::config::UserConfig;
 use crate::counter::Counter;
@@ -22,7 +24,7 @@ pub(crate) fn run() {
 
     loop {
         if counter.is_outdated() {
-            eprintln!("New day, resetting");
+            info!("New day, resetting");
             counter = Counter::new(config.users());
 
             config = config.reload().apply_rampup();
@@ -42,9 +44,10 @@ pub(crate) fn run() {
             {
                 counter = counter.add(user, elapsed);
 
-                println!(
+                trace!(
                     "{user} spent {:.1?} out of {:?}",
-                    counter.spent[user], user_config.allowed
+                    counter.spent[user],
+                    user_config.allowed
                 );
 
                 if counter.spent[user] >= user_config.allowed {
@@ -70,7 +73,7 @@ pub(crate) fn get_idle_time(
             Ok(time) => time,
             Err(err) => {
                 if *retries < 3 {
-                    eprintln!("Idle time reading failed: {err}");
+                    error!("Idle time reading failed: {err}");
                     *retries += 1;
                 }
                 *api_connection = break_enforcer::Api::new();
@@ -79,7 +82,7 @@ pub(crate) fn get_idle_time(
         },
         Err(err) => {
             if *retries < 3 {
-                eprintln!("Previous break enforcer connection failed: {err}");
+                error!("Previous break enforcer connection failed: {err}");
                 *retries += 1;
             }
             *api_connection = break_enforcer::Api::new();

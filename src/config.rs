@@ -1,13 +1,14 @@
-use crate::file_io;
-use crate::logging::log_error;
-use crate::user;
+use std::{collections::HashMap, time::Duration};
 
 use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
+use log::{error, info};
 use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 
-use std::{collections::HashMap, time::Duration};
+use crate::file_io;
+use crate::logging::log_error;
+use crate::user;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -68,7 +69,7 @@ impl Default for Config {
         let users = match user::list_users() {
             Ok(users) => users,
             Err(err) => {
-                eprintln!("Couldn't list users in home: {err:?}");
+                error!("Couldn't list users in home: {err:?}");
                 vec!["example_user".to_owned()]
             }
         };
@@ -100,20 +101,20 @@ impl Config {
             Ok(config) => config != Self::default(),
             Err(_) => true,
         } {
-            println!("Writing new template config");
+            info!("Writing new template config");
             Config::default().store(file_io::path::TEMPLATE_CONFIG);
         }
 
         match Config::load(file_io::path::CONFIG) {
             Ok(config) => config,
             Err(err) => {
-                eprintln!(
+                error!(
                     "Error while initially loading config, using previous config\nCause: {err:?}"
                 );
                 match Config::load(file_io::path::PREV_CONFIG) {
                     Ok(config) => config,
                     Err(err) => {
-                        eprintln!("Error while loading previous config on startup, using fallback\nCause: {err:?}");
+                        error!("Error while loading previous config on startup, using fallback\nCause: {err:?}");
                         Config::load(file_io::path::FALLBACK_CONFIG).unwrap()
                     }
                 }
@@ -130,7 +131,7 @@ impl Config {
                 new_config
             }
             Err(err) => {
-                eprintln!("Error loading config: {err:?}");
+                error!("Error loading config: {err:?}");
                 old_config
             }
         }

@@ -4,6 +4,7 @@ use std::time::Duration;
 use std::{fs, thread};
 
 use color_eyre::Result;
+use log::{error, info, warn};
 use thiserror::Error;
 
 const MAX_RETRIES: usize = 5;
@@ -31,7 +32,7 @@ pub(crate) fn list_users() -> Result<Vec<String>> {
 }
 
 pub(crate) fn logout(user: &str) {
-    println!("Logging out user {user}");
+    info!("Logging out user {user}");
     let mut retries = 0;
 
     while retries < MAX_RETRIES {
@@ -42,14 +43,14 @@ pub(crate) fn logout(user: &str) {
 
         match output {
             Ok(_) => return,
-            Err(err) => eprintln!("Error while trying to logout {user}: {err}"),
+            Err(err) => error!("Error while trying to logout {user}: {err}"),
         }
 
         retries += 1;
         thread::sleep(Duration::from_secs(5));
     }
 
-    eprintln!("Reached maximum retries for logout");
+    warn!("Reached maximum retries for logout");
 }
 
 pub(crate) fn exists(user: &str) -> bool {
@@ -59,7 +60,7 @@ pub(crate) fn exists(user: &str) -> bool {
             .any(|line| line.starts_with(&format!("{user}:"))),
         // Default to user exists
         Err(err) => {
-            eprintln!("Couldn't read /etc/passwd: {err}");
+            error!("Couldn't read /etc/passwd: {err}");
             true
         }
     }
@@ -70,7 +71,7 @@ pub(crate) fn is_active(user: &str) -> bool {
         Ok(res) => res,
         // Default to active
         Err(err) => {
-            eprintln!("Active checking encountered an error {err}, defaulting to active");
+            error!("Active checking encountered an error {err}, defaulting to active");
             true
         }
     }
