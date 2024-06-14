@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use chrono::{Local, NaiveDate};
+use chrono::{Local, NaiveDate, NaiveTime};
 use color_eyre::{eyre::Context, Result};
 use log::{error, info};
 use serde_derive::{Deserialize, Serialize};
@@ -31,12 +31,52 @@ pub struct UserConfig {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub allowed: Duration,
     pub rampup: Option<Rampup>,
+    pub time_slots: Vec<TimeSlot>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct TimeSlot {
+    start: NaiveTime,
+    end: NaiveTime,
+    allowed: Duration,
+}
+
+impl Default for TimeSlot {
+    fn default() -> Self {
+        let start = NaiveTime::from_hms_opt(0, 0, 0).expect("Valid");
+        let end = NaiveTime::from_hms_opt(24, 0, 0).expect("Valid");
+        let allowed = Duration::from_secs(86400);
+
+        Self {
+            start,
+            end,
+            allowed,
+        }
+    }
+}
+
+impl TimeSlot {
+    pub fn contains(&self, time: NaiveTime) -> bool {
+        // Not passing midnight
+        if self.end >= self.start {
+            time >= self.start && time <= self.end
+        // Passing midnight
+        } else {
+            time <= self.start || time >= self.end
+        }
+    }
 }
 
 impl UserConfig {
     pub fn clamp_rampup(mut self) -> Self {
         self.rampup = self.rampup.map(Rampup::clamp_percentage);
         self
+    }
+
+    pub fn current_timeslot(&self) -> impl Iterator<Item = &TimeSlot> {
+        self.time_slots
+            .iter()
+            .filter(|slot| slot.contains(Local::now().naive_local().time()))
     }
 }
 
@@ -84,6 +124,7 @@ impl Default for Config {
             long_warning: Duration::from_secs(300),
             allowed: Duration::from_secs(86400),
             rampup: Some(rampup),
+            time_slots: vec![TimeSlot::default()],
         };
 
         let per_user: HashMap<String, UserConfig> = users
