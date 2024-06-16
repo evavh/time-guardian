@@ -14,7 +14,7 @@ fn get_spent(user: &str) -> Duration {
     if counter.is_outdated() {
         Duration::default()
     } else {
-        counter.spent[user]
+        counter.counter[user].total_spent
     }
 }
 

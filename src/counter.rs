@@ -10,15 +10,23 @@ use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 
 use crate::config::Config;
+use crate::config::User;
 use crate::file_io;
 use crate::logging::log_error;
+use crate::time_slot::TimeSlot;
 
-#[serde_as]
 #[derive(Serialize, Deserialize)]
 pub(crate) struct Counter {
     pub(crate) date: NaiveDate,
-    #[serde_as(as = "HashMap<_, DurationSecondsWithFrac<f64>>")]
-    pub(crate) spent: HashMap<String, Duration>,
+    pub(crate) counter: HashMap<User, UserCounter>,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize)]
+pub struct UserCounter {
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    pub(crate) total_spent: Duration,
+    pub(crate) time_slots: Vec<TimeSlot>,
 }
 
 impl Counter {
@@ -26,14 +34,14 @@ impl Counter {
         let counter = match Counter::load() {
             Ok(counter) => {
                 if counter.is_outdated() {
-                    Counter::new(config.users())
+                    Counter::new(&config)
                 } else {
                     counter
                 }
             }
             Err(err) => {
                 error!("Error while loading counter: {err}, resetting");
-                Counter::new(config.users())
+                Counter::new(&config)
             }
         };
 
@@ -41,12 +49,27 @@ impl Counter {
         counter
     }
 
-    pub(crate) fn new(users: impl Iterator<Item = String>) -> Self {
-        let spent = users.map(|user| (user, Duration::default())).collect();
+    pub(crate) fn new(config: &Config) -> Self {
+        let users = config
+            .iter()
+            .map(|(user, user_config)| {
+                let time_slots = user_config
+                    .time_slots
+                    .clone()
+                    .into_iter()
+                    .map(|ts| ts.zero_time())
+                    .collect();
+                let user_counter = UserCounter {
+                    total_spent: Duration::default(),
+                    time_slots,
+                };
+                (user.clone(), user_counter)
+            })
+            .collect();
 
         Self {
             date: Local::now().date_naive(),
-            spent,
+            counter: users,
         }
     }
 
@@ -69,12 +92,10 @@ impl Counter {
     }
 
     pub(crate) fn add(mut self, user: &str, duration: Duration) -> Self {
-        let count = self
-            .spent
-            .get_mut(user)
+        let user_counter = self.counter.get_mut(user)
             .expect("Initialized from the hashmap, should be in there");
 
-        *count += duration;
+        user_counter.total_spent += duration;
         self
     }
 }

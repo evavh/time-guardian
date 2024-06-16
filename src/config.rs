@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use chrono::{Local, NaiveDate, NaiveTime};
+use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
 use log::{error, info};
 use serde_derive::{Deserialize, Serialize};
@@ -8,7 +8,10 @@ use serde_with::{serde_as, DurationSecondsWithFrac};
 
 use crate::file_io;
 use crate::logging::log_error;
+use crate::time_slot::TimeSlot;
 use crate::user;
+
+pub type User = String;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -29,43 +32,11 @@ pub struct UserConfig {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub long_warning: Duration,
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
-    pub allowed: Duration,
+    pub total_allowed: Duration,
     pub rampup: Option<Rampup>,
     pub time_slots: Vec<TimeSlot>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct TimeSlot {
-    start: NaiveTime,
-    end: NaiveTime,
-    allowed: Duration,
-}
-
-impl Default for TimeSlot {
-    fn default() -> Self {
-        let start = NaiveTime::from_hms_opt(0, 0, 0).expect("Valid");
-        let end = NaiveTime::from_hms_opt(24, 0, 0).expect("Valid");
-        let allowed = Duration::from_secs(86400);
-
-        Self {
-            start,
-            end,
-            allowed,
-        }
-    }
-}
-
-impl TimeSlot {
-    pub fn contains(&self, time: NaiveTime) -> bool {
-        // Not passing midnight
-        if self.end >= self.start {
-            time >= self.start && time <= self.end
-        // Passing midnight
-        } else {
-            time <= self.start || time >= self.end
-        }
-    }
-}
 
 impl UserConfig {
     pub fn clamp_rampup(mut self) -> Self {
@@ -73,7 +44,9 @@ impl UserConfig {
         self
     }
 
-    pub fn current_timeslot(&self) -> impl Iterator<Item = &TimeSlot> {
+    pub fn current_timeslot(
+        &self,
+    ) -> impl Iterator<Item = &TimeSlot> {
         self.time_slots
             .iter()
             .filter(|slot| slot.contains(Local::now().naive_local().time()))
@@ -122,7 +95,7 @@ impl Default for Config {
         let user_config = UserConfig {
             short_warning: Duration::from_secs(30),
             long_warning: Duration::from_secs(300),
-            allowed: Duration::from_secs(86400),
+            total_allowed: Duration::from_secs(86400),
             rampup: Some(rampup),
             time_slots: vec![TimeSlot::default()],
         };
@@ -229,7 +202,7 @@ impl Config {
     }
 
     pub fn allowed(&self, user: &str) -> Duration {
-        self.0[user].allowed
+        self.0[user].total_allowed
     }
 
     pub(crate) fn apply_rampup(self) -> Self {
@@ -244,7 +217,7 @@ impl Config {
                                 .try_into()
                                 .expect("n_days < 11Myears");
                             let old_seconds: u32 = user_config
-                                .allowed
+                                .total_allowed
                                 .as_secs()
                                 .try_into()
                                 .expect("allowed time < 22Myears");
@@ -256,7 +229,7 @@ impl Config {
                                     add_percentage(old_seconds, n_days, p)
                                 }
                             };
-                            user_config.allowed =
+                            user_config.total_allowed =
                                 Duration::from_secs(new_seconds.into());
                         }
                     }

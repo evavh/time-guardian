@@ -8,6 +8,7 @@ mod run;
 mod status;
 mod user;
 mod logging;
+mod time_slot;
 
 const BREAK_IDLE_THRESHOLD: u64 = 10;
 

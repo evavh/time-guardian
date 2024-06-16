@@ -25,7 +25,7 @@ pub(crate) fn run() {
     loop {
         if counter.is_outdated() {
             info!("New day, resetting");
-            counter = Counter::new(config.users());
+            counter = Counter::new(&config);
 
             config = config.reload().apply_rampup();
             config.store(path::RAMPEDUP);
@@ -46,11 +46,11 @@ pub(crate) fn run() {
 
                 trace!(
                     "{user} spent {:.1?} out of {:?}",
-                    counter.spent[user],
-                    user_config.allowed
+                    counter.counter[user].total_spent,
+                    user_config.total_allowed
                 );
 
-                if counter.spent[user] >= user_config.allowed {
+                if counter.counter[user].total_spent >= user_config.total_allowed {
                     user::logout(user);
                     // This user doesn't need to be accounted for right now
                     continue;
@@ -99,7 +99,9 @@ pub(crate) fn issue_warnings(
     // TODO: make short and long warnings different
     // (and multiple possible)
 
-    let time_left = config.allowed.saturating_sub(counter.spent[user]);
+    let time_left = config
+        .total_allowed
+        .saturating_sub(counter.counter[user].total_spent);
 
     if time_left == config.short_warning || time_left == config.long_warning {
         notification::notify_user(
