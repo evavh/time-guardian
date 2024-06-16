@@ -34,9 +34,8 @@ pub struct UserConfig {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub total_allowed: Duration,
     pub rampup: Option<Rampup>,
-    pub time_slots: Vec<TimeSlot>,
+    pub time_slots: Option<Vec<TimeSlot>>,
 }
-
 
 impl UserConfig {
     pub fn clamp_rampup(mut self) -> Self {
@@ -44,12 +43,11 @@ impl UserConfig {
         self
     }
 
-    pub fn current_timeslot(
-        &self,
-    ) -> impl Iterator<Item = &TimeSlot> {
-        self.time_slots
-            .iter()
-            .filter(|slot| slot.contains(Local::now().naive_local().time()))
+    pub fn current_timeslot(&self) -> Option<impl Iterator<Item = &TimeSlot>> {
+        self.time_slots.as_ref().map(|x| {
+            x.iter()
+                .filter(|slot| slot.contains(Local::now().naive_local().time()))
+        })
     }
 }
 
@@ -97,7 +95,7 @@ impl Default for Config {
             long_warning: Duration::from_secs(300),
             total_allowed: Duration::from_secs(86400),
             rampup: Some(rampup),
-            time_slots: vec![TimeSlot::default()],
+            time_slots: Some(vec![TimeSlot::default()]),
         };
 
         let per_user: HashMap<String, UserConfig> = users

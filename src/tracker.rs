@@ -26,7 +26,7 @@ pub(crate) struct Tracker {
 pub struct UserCounter {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub(crate) total_spent: Duration,
-    pub(crate) time_slots: Vec<TimeSlot>,
+    pub(crate) time_slots: Option<Vec<TimeSlot>>,
 }
 
 impl Tracker {
@@ -56,9 +56,7 @@ impl Tracker {
                 let time_slots = user_config
                     .time_slots
                     .clone()
-                    .into_iter()
-                    .map(|ts| ts.zero_time())
-                    .collect();
+                    .map(|x| x.into_iter().map(|ts| ts.zero_time()).collect());
                 let user_counter = UserCounter {
                     total_spent: Duration::default(),
                     time_slots,
@@ -92,7 +90,9 @@ impl Tracker {
     }
 
     pub(crate) fn add(mut self, user: &str, duration: Duration) -> Self {
-        let user_counter = self.counter.get_mut(user)
+        let user_counter = self
+            .counter
+            .get_mut(user)
             .expect("Initialized from the hashmap, should be in there");
 
         user_counter.total_spent += duration;
