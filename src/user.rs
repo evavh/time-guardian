@@ -31,6 +31,7 @@ pub(crate) fn list_users() -> Result<Vec<String>> {
     users
 }
 
+#[cfg(feature = "deploy")]
 pub(crate) fn logout(user: &str) {
     info!("Logging out user {user}");
     let mut retries = 0;
@@ -51,6 +52,11 @@ pub(crate) fn logout(user: &str) {
     }
 
     warn!("Reached maximum retries for logout");
+}
+
+#[cfg(not(feature = "deploy"))]
+pub(crate) fn logout(user: &str) {
+    println!("Would log out user {user}, not deployed");
 }
 
 pub(crate) fn exists(user: &str) -> bool {
