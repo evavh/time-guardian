@@ -9,12 +9,12 @@ pub(crate) fn spent(user: &str) {
 }
 
 fn get_spent(user: &str) -> Duration {
-    let counter = Tracker::load().unwrap();
+    let tracker = Tracker::load().unwrap();
 
-    if counter.is_outdated() {
+    if tracker.is_outdated() {
         Duration::default()
     } else {
-        counter.counter[user].total_spent
+        tracker.counter[user].total_spent
     }
 }
 

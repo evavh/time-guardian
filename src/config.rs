@@ -43,11 +43,20 @@ impl UserConfig {
         self
     }
 
-    pub fn current_timeslot(&self) -> Option<impl Iterator<Item = &TimeSlot>> {
+    pub fn current_timeslots(&self) -> Option<Vec<TimeSlot>> {
         self.time_slots.as_ref().map(|x| {
-            x.iter()
+            x.to_owned()
+                .into_iter()
                 .filter(|slot| slot.contains(Local::now().naive_local().time()))
+                .collect()
         })
+    }
+
+    pub fn now_within_timeslot(&self) -> bool {
+        let current_timeslots = self.current_timeslots();
+
+        current_timeslots.is_none()
+            || current_timeslots.is_some_and(|v| !v.is_empty())
     }
 }
 

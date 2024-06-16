@@ -6,9 +6,9 @@ use log::{error, info, trace};
 
 use crate::config::Config;
 use crate::config::UserConfig;
-use crate::tracker::Tracker;
 use crate::file_io::path;
 use crate::notification;
+use crate::tracker::Tracker;
 use crate::user;
 use crate::BREAK_IDLE_THRESHOLD;
 
@@ -38,7 +38,6 @@ pub(crate) fn run() {
         for (user, user_config) in config.iter() {
             // Default to 0 idle = active
             let idle_time = get_idle_time(&mut break_enforcer, &mut retries);
-
             if user::is_active(user)
                 && idle_time < Duration::from_secs(BREAK_IDLE_THRESHOLD)
             {
@@ -50,7 +49,10 @@ pub(crate) fn run() {
                     user_config.total_allowed
                 );
 
-                if tracker.counter[user].total_spent >= user_config.total_allowed {
+                if tracker.counter[user].total_spent
+                    >= user_config.total_allowed
+                    || !user_config.now_within_timeslot()
+                {
                     user::logout(user);
                     // This user doesn't need to be accounted for right now
                     continue;
