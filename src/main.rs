@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 mod config;
-mod counter;
+mod tracker;
 mod file_io;
 mod notification;
 mod run;

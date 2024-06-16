@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{config::Config, counter::Counter, file_io};
+use crate::{config::Config, tracker::Tracker, file_io};
 
 pub(crate) fn spent(user: &str) {
     let spent = get_spent(user).as_secs_f64();
@@ -9,7 +9,7 @@ pub(crate) fn spent(user: &str) {
 }
 
 fn get_spent(user: &str) -> Duration {
-    let counter = Counter::load().unwrap();
+    let counter = Tracker::load().unwrap();
 
     if counter.is_outdated() {
         Duration::default()

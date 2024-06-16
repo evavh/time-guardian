@@ -16,7 +16,7 @@ use crate::logging::log_error;
 use crate::time_slot::TimeSlot;
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct Counter {
+pub(crate) struct Tracker {
     pub(crate) date: NaiveDate,
     pub(crate) counter: HashMap<User, UserCounter>,
 }
@@ -29,28 +29,28 @@ pub struct UserCounter {
     pub(crate) time_slots: Vec<TimeSlot>,
 }
 
-impl Counter {
-    pub(crate) fn initialize(config: &Config) -> Counter {
-        let counter = match Counter::load() {
-            Ok(counter) => {
-                if counter.is_outdated() {
-                    Counter::new(&config)
+impl Tracker {
+    pub(crate) fn initialize(config: &Config) -> Tracker {
+        let tracker = match Tracker::load() {
+            Ok(tracker) => {
+                if tracker.is_outdated() {
+                    Tracker::new(&config)
                 } else {
-                    counter
+                    tracker
                 }
             }
             Err(err) => {
-                error!("Error while loading counter: {err}, resetting");
-                Counter::new(&config)
+                error!("Error while loading tracker: {err}, resetting");
+                Tracker::new(&config)
             }
         };
 
-        counter.store();
-        counter
+        tracker.store();
+        tracker
     }
 
     pub(crate) fn new(config: &Config) -> Self {
-        let users = config
+        let counter = config
             .iter()
             .map(|(user, user_config)| {
                 let time_slots = user_config
@@ -69,7 +69,7 @@ impl Counter {
 
         Self {
             date: Local::now().date_naive(),
-            counter: users,
+            counter,
         }
     }
 
@@ -79,15 +79,15 @@ impl Counter {
 
     pub(crate) fn load() -> Result<Self> {
         let file_content = fs::read_to_string(file_io::path::STATUS)?;
-        let counter: Result<Counter, _> = file_io::from_str(&file_content);
+        let tracker: Result<Tracker, _> = file_io::from_str(&file_content);
 
-        Ok(counter?)
+        Ok(tracker?)
     }
 
     pub(crate) fn store(&self) {
         log_error(
             file_io::store(&self, file_io::path::STATUS),
-            "Error while trying to store counter",
+            "Error while trying to store tracker",
         );
     }
 

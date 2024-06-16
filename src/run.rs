@@ -6,7 +6,7 @@ use log::{error, info, trace};
 
 use crate::config::Config;
 use crate::config::UserConfig;
-use crate::counter::Counter;
+use crate::tracker::Tracker;
 use crate::file_io::path;
 use crate::notification;
 use crate::user;
@@ -14,7 +14,7 @@ use crate::BREAK_IDLE_THRESHOLD;
 
 pub(crate) fn run() {
     let mut config = Config::initialize_from_files().apply_rampup();
-    let mut counter = Counter::initialize(&config);
+    let mut tracker = Tracker::initialize(&config);
     config.store(path::RAMPEDUP);
 
     let mut break_enforcer = break_enforcer::Api::new();
@@ -23,9 +23,9 @@ pub(crate) fn run() {
     let mut now = Instant::now();
 
     loop {
-        if counter.is_outdated() {
+        if tracker.is_outdated() {
             info!("New day, resetting");
-            counter = Counter::new(&config);
+            tracker = Tracker::new(&config);
 
             config = config.reload().apply_rampup();
             config.store(path::RAMPEDUP);
@@ -42,23 +42,23 @@ pub(crate) fn run() {
             if user::is_active(user)
                 && idle_time < Duration::from_secs(BREAK_IDLE_THRESHOLD)
             {
-                counter = counter.add(user, elapsed);
+                tracker = tracker.add(user, elapsed);
 
                 trace!(
                     "{user} spent {:.1?} out of {:?}",
-                    counter.counter[user].total_spent,
+                    tracker.counter[user].total_spent,
                     user_config.total_allowed
                 );
 
-                if counter.counter[user].total_spent >= user_config.total_allowed {
+                if tracker.counter[user].total_spent >= user_config.total_allowed {
                     user::logout(user);
                     // This user doesn't need to be accounted for right now
                     continue;
                 }
 
-                counter.store();
+                tracker.store();
 
-                issue_warnings(&counter, user_config, user);
+                issue_warnings(&tracker, user_config, user);
             }
         }
     }
@@ -92,7 +92,7 @@ pub(crate) fn get_idle_time(
 }
 
 pub(crate) fn issue_warnings(
-    counter: &Counter,
+    tracker: &Tracker,
     config: &UserConfig,
     user: &str,
 ) {
@@ -101,7 +101,7 @@ pub(crate) fn issue_warnings(
 
     let time_left = config
         .total_allowed
-        .saturating_sub(counter.counter[user].total_spent);
+        .saturating_sub(tracker.counter[user].total_spent);
 
     if time_left == config.short_warning || time_left == config.long_warning {
         notification::notify_user(
