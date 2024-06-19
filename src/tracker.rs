@@ -15,18 +15,38 @@ use crate::file_io;
 use crate::logging::log_error;
 use crate::time_slot::TimeSlot;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Tracker {
     pub(crate) date: NaiveDate,
     pub(crate) counter: HashMap<User, UserCounter>,
 }
 
 #[serde_as]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UserCounter {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub(crate) total_spent: Duration,
     pub(crate) time_slots: Option<Vec<TimeSlot>>,
+}
+
+impl UserCounter {
+    pub fn add_to_total_spent(&mut self, duration: Duration) {
+        self.total_spent += duration;
+    }
+
+    pub fn add_to_current_timeslots(&mut self, duration: Duration) {
+        self.time_slots = match &mut self.time_slots {
+            Some(ref mut time_slots) => {
+                for slot in time_slots.iter_mut() {
+                    if slot.contains(Local::now().naive_local().time()) {
+                        slot.time = slot.time.map(|t| t + duration);
+                    }
+                }
+                Some(time_slots.to_vec())
+            }
+            None => None,
+        };
+    }
 }
 
 impl Tracker {
@@ -89,13 +109,13 @@ impl Tracker {
         );
     }
 
-    pub(crate) fn add(mut self, user: &str, duration: Duration) -> Self {
+    pub(crate) fn add(&mut self, user: &str, duration: Duration) {
         let user_counter = self
             .counter
             .get_mut(user)
             .expect("Initialized from the hashmap, should be in there");
 
-        user_counter.total_spent += duration;
-        self
+        user_counter.add_to_total_spent(duration);
+        user_counter.add_to_current_timeslots(duration);
     }
 }

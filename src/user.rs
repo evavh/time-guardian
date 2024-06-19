@@ -1,12 +1,16 @@
 use std::ffi::OsString;
 use std::process::Command;
+#[allow(unused_imports)]
 use std::time::Duration;
+#[allow(unused_imports)]
 use std::{fs, thread};
 
 use color_eyre::Result;
+#[allow(unused_imports)]
 use log::{error, info, warn};
 use thiserror::Error;
 
+#[allow(dead_code)]
 const MAX_RETRIES: usize = 5;
 
 #[derive(Error, Debug)]

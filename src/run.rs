@@ -41,13 +41,15 @@ pub(crate) fn run() {
             if user::is_active(user)
                 && idle_time < Duration::from_secs(BREAK_IDLE_THRESHOLD)
             {
-                tracker = tracker.add(user, elapsed);
+                // TODO? limitation: only reloads new timeslot settings on new day
+                tracker.add(user, elapsed);
 
                 trace!(
                     "{user} spent {:.1?} out of {:?}",
                     tracker.counter[user].total_spent,
                     user_config.total_allowed
                 );
+                trace!("Timeslots: {:#?}", tracker.counter[user].time_slots);
 
                 if tracker.counter[user].total_spent
                     >= user_config.total_allowed
