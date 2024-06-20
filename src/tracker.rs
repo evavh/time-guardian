@@ -42,7 +42,7 @@ impl UserCounter {
                         slot.time = slot.time.map(|t| t + duration);
                     }
                 }
-                Some(time_slots.to_vec())
+                Some(time_slots.clone())
             }
             None => None,
         };
@@ -54,14 +54,14 @@ impl Tracker {
         let tracker = match Tracker::load() {
             Ok(tracker) => {
                 if tracker.is_outdated() {
-                    Tracker::new(&config)
+                    Tracker::new(config)
                 } else {
                     tracker
                 }
             }
             Err(err) => {
                 error!("Error while loading tracker: {err}, resetting");
-                Tracker::new(&config)
+                Tracker::new(config)
             }
         };
 
@@ -76,7 +76,7 @@ impl Tracker {
                 let time_slots = user_config
                     .time_slots
                     .clone()
-                    .map(|x| x.into_iter().map(|ts| ts.zero_time()).collect());
+                    .map(|x| x.into_iter().map(TimeSlot::zero_time).collect());
                 let user_counter = UserCounter {
                     total_spent: Duration::default(),
                     time_slots,
@@ -99,7 +99,7 @@ impl Tracker {
         let file_content = fs::read_to_string(file_io::path::STATUS)?;
         let tracker: Result<Tracker, _> = file_io::from_str(&file_content);
 
-        Ok(tracker?)
+        tracker
     }
 
     pub(crate) fn store(&self) {

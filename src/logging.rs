@@ -4,7 +4,7 @@ use log::error;
 
 pub fn log_error<E: Debug>(fallible: Result<(), E>, message: &str) {
     match fallible {
-        Ok(()) => return,
+        Ok(()) => (),
         Err(err) => error!("{message}: {err:?}"),
     }
 }

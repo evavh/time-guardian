@@ -45,9 +45,11 @@ impl UserConfig {
 
     pub fn current_timeslots(&self) -> Option<Vec<TimeSlot>> {
         self.time_slots.as_ref().map(|x| {
-            x.to_owned()
-                .into_iter()
-                .filter(|slot| slot.contains(Local::now().naive_local().time()))
+            x.iter()
+                .filter(|&slot| {
+                    slot.contains(Local::now().naive_local().time())
+                })
+                .cloned()
                 .collect()
         })
     }
