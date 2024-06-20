@@ -118,4 +118,30 @@ impl Tracker {
         user_counter.add_to_total_spent(duration);
         user_counter.add_to_current_timeslots(duration);
     }
+
+    pub(crate) fn timeslot_over_time(
+        &self,
+        config: &Config,
+        user: &str,
+    ) -> bool {
+        let Some(allowed_timeslots) = &config.user(user).time_slots else {
+            return false;
+        };
+
+        let Some(spent_timeslots) = &self.counter[user].time_slots else {
+            return false;
+        };
+
+        for allowed_timeslot in allowed_timeslots {
+            for spent_timeslot in spent_timeslots {
+                if allowed_timeslot == spent_timeslot
+                    && spent_timeslot.time >= allowed_timeslot.time
+                {
+                    return true;
+                };
+            }
+        }
+
+        false
+    }
 }

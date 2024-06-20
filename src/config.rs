@@ -200,6 +200,10 @@ impl Config {
         self.0.keys().map(ToString::to_string)
     }
 
+    pub fn user(&self, user: &str) -> &UserConfig {
+        &self.0[user]
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&String, &UserConfig)> + '_ {
         self.0.iter()
     }

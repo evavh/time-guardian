@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TimeSlot {
     pub(crate) start: NaiveTime,
     pub(crate) end: NaiveTime,
@@ -26,6 +26,15 @@ impl Default for TimeSlot {
         }
     }
 }
+
+// Only compare start and end, not spent/allowed time
+impl PartialEq for TimeSlot {
+    fn eq(&self, other: &Self) -> bool {
+        self.start == other.start && self.end == other.end
+    }
+}
+
+impl Eq for TimeSlot {}
 
 impl TimeSlot {
     pub fn contains(&self, time: NaiveTime) -> bool {
