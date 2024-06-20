@@ -10,7 +10,6 @@ use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 
 use crate::config::Config;
-use crate::config::User;
 use crate::file_io;
 use crate::logging::log_error;
 use crate::time_slot::TimeSlot;
@@ -18,7 +17,7 @@ use crate::time_slot::TimeSlot;
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Tracker {
     pub(crate) date: NaiveDate,
-    pub(crate) counter: HashMap<User, UserCounter>,
+    pub(crate) counter: HashMap<String, UserCounter>,
 }
 
 #[serde_as]

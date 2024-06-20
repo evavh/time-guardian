@@ -11,8 +11,6 @@ use crate::logging::log_error;
 use crate::time_slot::TimeSlot;
 use crate::user;
 
-pub type User = String;
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("User {0} doesn't exist")]
