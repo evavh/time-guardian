@@ -51,10 +51,10 @@ pub(crate) fn run() {
                 );
                 trace!("Timeslots: {:#?}", tracker.counter[user].time_slots);
 
-                if dbg!(tracker.counter[user].total_spent
-                    >= user_config.total_allowed)
-                    || dbg!(tracker.timeslot_over_time(&config, user))
-                    || dbg!(!user_config.now_within_timeslot())
+                if tracker.counter[user].total_spent
+                    >= user_config.total_allowed
+                    || tracker.timeslot_over_time(&config, user)
+                    || !user_config.now_within_timeslot()
                 {
                     user::logout(user);
                     // This user doesn't need to be accounted for right now
