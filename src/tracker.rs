@@ -133,8 +133,16 @@ impl Tracker {
 
         for allowed_timeslot in allowed_timeslots {
             for spent_timeslot in spent_timeslots {
+                let Some(spent_time) = spent_timeslot.time else {
+                    continue;
+                };
+
+                let Some(allowed_time) = allowed_timeslot.time else {
+                    continue;
+                };
+
                 if allowed_timeslot == spent_timeslot
-                    && spent_timeslot.time >= allowed_timeslot.time
+                    && spent_time >= allowed_time
                 {
                     return true;
                 };
