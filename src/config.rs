@@ -179,6 +179,9 @@ impl Config {
     fn fix_values(self) -> Self {
         Self(
             self.into_iter()
+                // Remove root user, should never be guarded
+                .filter(|(user, _)| user != "root")
+                // Clamp rampup
                 .map(|(user, user_config)| {
                     (user.clone(), user_config.clone().clamp_rampup())
                 })
