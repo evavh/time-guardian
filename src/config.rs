@@ -1,7 +1,8 @@
 use std::{collections::HashMap, time::Duration};
 
-use chrono::{Local, NaiveDate};
 use color_eyre::{eyre::Context, Result};
+use jiff::civil::Date;
+use jiff::Zoned;
 use log::{error, info};
 use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
@@ -44,9 +45,7 @@ impl UserConfig {
     pub fn current_timeslots(&self) -> Option<Vec<TimeSlot>> {
         self.time_slots.as_ref().map(|x| {
             x.iter()
-                .filter(|&slot| {
-                    slot.contains(Local::now().naive_local().time())
-                })
+                .filter(|&slot| slot.contains(Zoned::now()))
                 .cloned()
                 .collect()
         })
@@ -63,7 +62,7 @@ impl UserConfig {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Rampup {
     pub speed: Speed,
-    pub start_date: NaiveDate,
+    pub start_date: Date,
 }
 
 impl Rampup {
@@ -96,8 +95,7 @@ impl Default for Config {
 
         let rampup = Rampup {
             speed: Speed::ConstantSeconds(1),
-            start_date: NaiveDate::from_ymd_opt(2024, 5, 1)
-                .expect("Date exists"),
+            start_date: Date::new(2024, 5, 1).expect("Date exists"),
         };
         let user_config = UserConfig {
             short_warning: Duration::from_secs(30),
@@ -224,12 +222,10 @@ impl Config {
             self.into_iter()
                 .map(|(user, mut user_config)| {
                     if let Some(rampup) = &user_config.rampup {
-                        let today = Local::now().date_naive();
+                        let today = Zoned::now().datetime().date();
                         if today > rampup.start_date {
                             let n_days: i32 = (today - rampup.start_date)
-                                .num_days()
-                                .try_into()
-                                .expect("n_days < 11Myears");
+                                .get_days();
                             let old_seconds: u32 = user_config
                                 .total_allowed
                                 .as_secs()

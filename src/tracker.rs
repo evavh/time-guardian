@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::time::Duration;
 
-use chrono::Local;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use color_eyre::Result;
+use jiff::Zoned;
 use log::error;
 use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
@@ -16,7 +16,7 @@ use crate::time_slot::TimeSlot;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct Tracker {
-    pub(crate) date: NaiveDate,
+    pub(crate) date: Date,
     pub(crate) counter: HashMap<String, UserCounter>,
 }
 
@@ -37,7 +37,7 @@ impl UserCounter {
         self.time_slots = match &mut self.time_slots {
             Some(ref mut time_slots) => {
                 for slot in time_slots.iter_mut() {
-                    if slot.contains(Local::now().naive_local().time()) {
+                    if slot.contains(Zoned::now()) {
                         slot.time = slot.time.map(|t| t + duration);
                     }
                 }
@@ -85,13 +85,13 @@ impl Tracker {
             .collect();
 
         Self {
-            date: Local::now().date_naive(),
+            date: Zoned::now().datetime().date(),
             counter,
         }
     }
 
     pub(crate) fn is_outdated(&self) -> bool {
-        Local::now().date_naive() != self.date
+        Zoned::now().datetime().date() != self.date
     }
 
     pub(crate) fn load() -> Result<Self> {
