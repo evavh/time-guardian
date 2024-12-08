@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::time::Duration;
 
-use jiff::civil::Date;
 use color_eyre::Result;
+use jiff::civil::Date;
 use jiff::Zoned;
 use log::error;
 use serde_derive::{Deserialize, Serialize};
@@ -72,10 +72,10 @@ impl Tracker {
         let counter = config
             .iter()
             .map(|(user, user_config)| {
-                let time_slots = user_config
-                    .time_slots
-                    .clone()
-                    .map(|x| x.into_iter().map(TimeSlot::zero_time).collect());
+                let time_slots =
+                    user_config.current_day_config().time_slots.clone().map(
+                        |x| x.into_iter().map(TimeSlot::zero_time).collect(),
+                    );
                 let user_counter = UserCounter {
                     total_spent: Duration::default(),
                     time_slots,
@@ -123,7 +123,9 @@ impl Tracker {
         config: &Config,
         user: &str,
     ) -> bool {
-        let Some(allowed_timeslots) = &config.user(user).time_slots else {
+        let Some(allowed_timeslots) =
+            &config.user(user).current_day_config().time_slots
+        else {
             return false;
         };
 

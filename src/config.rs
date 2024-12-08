@@ -6,6 +6,7 @@ use jiff::Zoned;
 use log::{error, info};
 use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
+use strum::{Display, VariantArray};
 
 use crate::file_io;
 use crate::logging::log_error;
@@ -30,10 +31,61 @@ pub struct UserConfig {
     pub short_warning: Duration,
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub long_warning: Duration,
+    pub rampup: Option<Rampup>,
+    // TODO: change to jiff Weekday when it supports serde...
+    pub days: HashMap<Vec<Weekday>, DayConfig>,
+}
+
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Display,
+    VariantArray,
+)]
+pub enum Weekday {
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday,
+    Sunday,
+}
+
+impl From<jiff::civil::Weekday> for Weekday {
+    fn from(value: jiff::civil::Weekday) -> Self {
+        match value {
+            jiff::civil::Weekday::Monday => Weekday::Monday,
+            jiff::civil::Weekday::Tuesday => Weekday::Monday,
+            jiff::civil::Weekday::Wednesday => Weekday::Monday,
+            jiff::civil::Weekday::Thursday => Weekday::Monday,
+            jiff::civil::Weekday::Friday => Weekday::Monday,
+            jiff::civil::Weekday::Saturday => Weekday::Monday,
+            jiff::civil::Weekday::Sunday => Weekday::Monday,
+        }
+    }
+}
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct DayConfig {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub total_allowed: Duration,
-    pub rampup: Option<Rampup>,
     pub time_slots: Option<Vec<TimeSlot>>,
+}
+
+impl Default for DayConfig {
+    fn default() -> Self {
+        Self {
+            total_allowed: Duration::from_secs(86400),
+            time_slots: Some(vec![TimeSlot::default()]),
+        }
+    }
 }
 
 impl UserConfig {
@@ -42,8 +94,33 @@ impl UserConfig {
         self
     }
 
-    pub fn current_timeslots(&self) -> Option<Vec<TimeSlot>> {
-        self.time_slots.as_ref().map(|x| {
+    pub fn current_day_config(&self) -> DayConfig {
+        let current_weekday: Weekday = Zoned::now().weekday().into();
+        let day_configs: Vec<DayConfig> = self
+            .days
+            .clone()
+            .into_iter()
+            .filter(|(days, _)| days.contains(&current_weekday))
+            .map(|(_, config)| config)
+            .collect();
+        if day_configs.len() > 1 {
+            println!(
+                "{current_weekday} is in config multiple times,
+                using first occurence"
+            );
+        }
+        if day_configs.len() == 0 {
+            println!(
+                "{current_weekday} is not in config!
+                Using default (no blocking)"
+            );
+            return DayConfig::default();
+        }
+        day_configs.into_iter().next().expect("Checked for empty")
+    }
+
+    fn current_timeslots(&self) -> Option<Vec<TimeSlot>> {
+        self.current_day_config().time_slots.as_ref().map(|x| {
             x.iter()
                 .filter(|&slot| slot.contains(Zoned::now()))
                 .cloned()
@@ -97,12 +174,13 @@ impl Default for Config {
             speed: Speed::ConstantSeconds(1),
             start_date: Date::new(2024, 5, 1).expect("Date exists"),
         };
+        let days =
+            HashMap::from([(Weekday::VARIANTS.to_vec(), DayConfig::default())]);
         let user_config = UserConfig {
             short_warning: Duration::from_secs(30),
             long_warning: Duration::from_secs(300),
-            total_allowed: Duration::from_secs(86400),
             rampup: Some(rampup),
-            time_slots: Some(vec![TimeSlot::default()]),
+            days,
         };
 
         let per_user: HashMap<String, UserConfig> = users
@@ -214,19 +292,20 @@ impl Config {
     }
 
     pub fn allowed(&self, user: &str) -> Duration {
-        self.0[user].total_allowed
+        self.0[user].current_day_config().total_allowed
     }
 
     pub(crate) fn apply_rampup(self) -> Self {
         Self(
             self.into_iter()
-                .map(|(user, mut user_config)| {
+                .map(|(user, user_config)| {
+                    let mut day_config = user_config.current_day_config();
                     if let Some(rampup) = &user_config.rampup {
                         let today = Zoned::now().datetime().date();
                         if today > rampup.start_date {
-                            let n_days: i32 = (today - rampup.start_date)
-                                .get_days();
-                            let old_seconds: u32 = user_config
+                            let n_days: i32 =
+                                (today - rampup.start_date).get_days();
+                            let old_seconds: u32 = day_config
                                 .total_allowed
                                 .as_secs()
                                 .try_into()
@@ -239,7 +318,7 @@ impl Config {
                                     add_percentage(old_seconds, n_days, p)
                                 }
                             };
-                            user_config.total_allowed =
+                            day_config.total_allowed =
                                 Duration::from_secs(new_seconds.into());
                         }
                     }
