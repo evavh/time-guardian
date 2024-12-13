@@ -72,10 +72,10 @@ impl Tracker {
         let counter = config
             .iter()
             .map(|(user, user_config)| {
-                let time_slots =
-                    user_config.current_day_config().time_slots.clone().map(
-                        |x| x.into_iter().map(TimeSlot::zero_time).collect(),
-                    );
+                let time_slots = user_config
+                    .timeslots_today()
+                    .clone()
+                    .map(|x| x.into_iter().map(TimeSlot::zero_time).collect());
                 let user_counter = UserCounter {
                     total_spent: Duration::default(),
                     time_slots,
@@ -124,7 +124,7 @@ impl Tracker {
         user: &str,
     ) -> bool {
         let Some(allowed_timeslots) =
-            &config.user(user).current_day_config().time_slots
+            &config.user(user).timeslots_today()
         else {
             return false;
         };

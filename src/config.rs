@@ -33,7 +33,7 @@ pub struct UserConfig {
     pub long_warning: Duration,
     pub rampup: Option<Rampup>,
     // TODO: change to jiff Weekday when it supports serde...
-    pub days: HashMap<Vec<Weekday>, DayConfig>,
+    days: HashMap<Vec<Weekday>, DayConfig>,
 }
 
 #[derive(
@@ -73,10 +73,10 @@ impl From<jiff::civil::Weekday> for Weekday {
 
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct DayConfig {
+struct DayConfig {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
-    pub total_allowed: Duration,
-    pub time_slots: Option<Vec<TimeSlot>>,
+    total_allowed: Duration,
+    time_slots: Option<Vec<TimeSlot>>,
 }
 
 impl Default for DayConfig {
@@ -94,7 +94,15 @@ impl UserConfig {
         self
     }
 
-    pub fn current_day_config(&self) -> DayConfig {
+    pub fn total_allowed_today(&self) -> Duration {
+        self.todays_config().total_allowed
+    }
+
+    pub fn timeslots_today(&self) -> Option<Vec<TimeSlot>> {
+        self.todays_config().time_slots
+    }
+
+    fn todays_config(&self) -> DayConfig {
         let current_weekday: Weekday = Zoned::now().weekday().into();
         let day_configs: Vec<DayConfig> = self
             .days
@@ -119,8 +127,8 @@ impl UserConfig {
         day_configs.into_iter().next().expect("Checked for empty")
     }
 
-    fn current_timeslots(&self) -> Option<Vec<TimeSlot>> {
-        self.current_day_config().time_slots.as_ref().map(|x| {
+    fn timeslots_right_now(&self) -> Option<Vec<TimeSlot>> {
+        self.todays_config().time_slots.as_ref().map(|x| {
             x.iter()
                 .filter(|&slot| slot.contains(Zoned::now()))
                 .cloned()
@@ -129,7 +137,7 @@ impl UserConfig {
     }
 
     pub fn now_within_timeslot(&self) -> bool {
-        let current_timeslots = self.current_timeslots();
+        let current_timeslots = self.timeslots_right_now();
 
         current_timeslots.is_none()
             || current_timeslots.is_some_and(|v| !v.is_empty())
@@ -202,7 +210,7 @@ impl Config {
             Config::default().store(file_io::path::TEMPLATE_CONFIG);
         }
 
-        match Config::load(file_io::path::CONFIG) {
+        match Config::load(dbg!(file_io::path::CONFIG)) {
             Ok(config) => config,
             Err(err) => {
                 error!(
@@ -292,14 +300,14 @@ impl Config {
     }
 
     pub fn allowed(&self, user: &str) -> Duration {
-        self.0[user].current_day_config().total_allowed
+        self.0[user].todays_config().total_allowed
     }
 
     pub(crate) fn apply_rampup(self) -> Self {
         Self(
             self.into_iter()
                 .map(|(user, user_config)| {
-                    let mut day_config = user_config.current_day_config();
+                    let mut day_config = user_config.todays_config();
                     if let Some(rampup) = &user_config.rampup {
                         let today = Zoned::now().datetime().date();
                         if today > rampup.start_date {

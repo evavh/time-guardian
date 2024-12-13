@@ -47,12 +47,12 @@ pub(crate) fn run() {
                 trace!(
                     "{user} spent {:.1?} out of {:?}",
                     tracker.counter[user].total_spent,
-                    user_config.current_day_config().total_allowed
+                    user_config.total_allowed_today()
                 );
                 trace!("Timeslots: {:#?}", tracker.counter[user].time_slots);
 
                 if tracker.counter[user].total_spent
-                    >= user_config.current_day_config().total_allowed
+                    >= user_config.total_allowed_today()
                     || tracker.timeslot_over_time(&config, user)
                     || !user_config.now_within_timeslot()
                 {
@@ -105,8 +105,7 @@ pub(crate) fn issue_warnings(
     // (and multiple possible)
 
     let time_left = config
-        .current_day_config()
-        .total_allowed
+        .total_allowed_today()
         .saturating_sub(tracker.counter[user].total_spent);
 
     if time_left == config.short_warning || time_left == config.long_warning {
