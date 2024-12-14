@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::{collections::HashMap, time::Duration};
 
 use color_eyre::{eyre::Context, Result};
@@ -33,7 +34,7 @@ pub struct UserConfig {
     pub long_warning: Duration,
     pub rampup: Option<Rampup>,
     // TODO: change to jiff Weekday when it supports serde...
-    days: HashMap<Vec<Weekday>, DayConfig>,
+    days: HashMap<String, DayConfig>,
 }
 
 #[derive(
@@ -57,16 +58,33 @@ pub enum Weekday {
     Sunday,
 }
 
+impl FromStr for Weekday {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "mo" | "monday" => Ok(Self::Monday),
+            "tu" | "tuesday" => Ok(Self::Tuesday),
+            "we" | "wednesday" => Ok(Self::Wednesday),
+            "th" | "thursday" => Ok(Self::Thursday),
+            "fr" | "friday" => Ok(Self::Friday),
+            "sa" | "saturday" => Ok(Self::Saturday),
+            "su" | "sunday" => Ok(Self::Sunday),
+            invalid => Err(format!("Invalid weekday string: {invalid}")),
+        }
+    }
+}
+
 impl From<jiff::civil::Weekday> for Weekday {
     fn from(value: jiff::civil::Weekday) -> Self {
         match value {
             jiff::civil::Weekday::Monday => Weekday::Monday,
-            jiff::civil::Weekday::Tuesday => Weekday::Monday,
-            jiff::civil::Weekday::Wednesday => Weekday::Monday,
-            jiff::civil::Weekday::Thursday => Weekday::Monday,
-            jiff::civil::Weekday::Friday => Weekday::Monday,
-            jiff::civil::Weekday::Saturday => Weekday::Monday,
-            jiff::civil::Weekday::Sunday => Weekday::Monday,
+            jiff::civil::Weekday::Tuesday => Weekday::Tuesday,
+            jiff::civil::Weekday::Wednesday => Weekday::Wednesday,
+            jiff::civil::Weekday::Thursday => Weekday::Thursday,
+            jiff::civil::Weekday::Friday => Weekday::Friday,
+            jiff::civil::Weekday::Saturday => Weekday::Saturday,
+            jiff::civil::Weekday::Sunday => Weekday::Sunday,
         }
     }
 }
@@ -104,11 +122,14 @@ impl UserConfig {
 
     fn todays_config(&self) -> DayConfig {
         let current_weekday: Weekday = Zoned::now().weekday().into();
+        dbg!(&current_weekday);
         let day_configs: Vec<DayConfig> = self
             .days
             .clone()
             .into_iter()
-            .filter(|(days, _)| days.contains(&current_weekday))
+            .filter(|(days_str, _)| {
+                to_days(days_str).contains(&current_weekday)
+            })
             .map(|(_, config)| config)
             .collect();
         if day_configs.len() > 1 {
@@ -124,7 +145,7 @@ impl UserConfig {
             );
             return DayConfig::default();
         }
-        day_configs.into_iter().next().expect("Checked for empty")
+        dbg!(day_configs.into_iter().next().expect("Checked for empty"))
     }
 
     fn timeslots_right_now(&self) -> Option<Vec<TimeSlot>> {
@@ -182,8 +203,10 @@ impl Default for Config {
             speed: Speed::ConstantSeconds(1),
             start_date: Date::new(2024, 5, 1).expect("Date exists"),
         };
-        let days =
-            HashMap::from([(Weekday::VARIANTS.to_vec(), DayConfig::default())]);
+        let days = HashMap::from([(
+            String::from("Mo,Tu,We,Th,Fr,Sa,Su"),
+            DayConfig::default(),
+        )]);
         let user_config = UserConfig {
             short_warning: Duration::from_secs(30),
             long_warning: Duration::from_secs(300),
@@ -345,4 +368,9 @@ fn add_percentage(old_time: u32, n_days: i32, percentage: f32) -> u32 {
         old_time as f32 * (1.0 + percentage / 100.0).powi(n_days);
 
     unrounded.round() as u32
+}
+
+// "Monday,Tuesday" -> vec![WD::Monday, WD::Tuesday]
+fn to_days(str: &str) -> Vec<Weekday> {
+    str.split(',').map(|s| s.parse().unwrap()).collect()
 }

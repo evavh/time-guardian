@@ -1,33 +1,32 @@
 use color_eyre::Result;
-use ron::{extensions::Extensions, ser::PrettyConfig};
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::PathBuf;
 
 #[cfg(feature = "deploy")]
 pub(crate) mod path {
-    pub(crate) const CONFIG: &str = "/etc/time-guardian/config.ron";
-    pub(crate) const PREV_CONFIG: &str = "/etc/time-guardian/prev-config.ron";
+    pub(crate) const CONFIG: &str = "/etc/time-guardian/config.json";
+    pub(crate) const PREV_CONFIG: &str = "/etc/time-guardian/prev-config.json";
     pub(crate) const FALLBACK_CONFIG: &str =
-        "/etc/time-guardian/fallback-config.ron";
+        "/etc/time-guardian/fallback-config.json";
     pub(crate) const TEMPLATE_CONFIG: &str =
-        "/etc/time-guardian/template-config.ron";
+        "/etc/time-guardian/template-config.json";
 
-    pub(crate) const STATUS: &str = "/var/lib/time-guardian/status.ron";
-    pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian/rampedup.ron";
+    pub(crate) const STATUS: &str = "/var/lib/time-guardian/status.json";
+    pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian/rampedup.json";
 }
 
 #[cfg(not(feature = "deploy"))]
 pub(crate) mod path {
-    pub(crate) const CONFIG: &str = "/etc/time-guardian-dev/config.ron";
+    pub(crate) const CONFIG: &str = "/etc/time-guardian-dev/config.json";
     pub(crate) const PREV_CONFIG: &str =
-        "/etc/time-guardian-dev/prev-config.ron";
+        "/etc/time-guardian-dev/prev-config.json";
     pub(crate) const FALLBACK_CONFIG: &str =
-        "/etc/time-guardian-dev/fallback-config.ron";
+        "/etc/time-guardian-dev/fallback-config.json";
     pub(crate) const TEMPLATE_CONFIG: &str =
-        "/etc/time-guardian-dev/template-config.ron";
+        "/etc/time-guardian-dev/template-config.json";
 
-    pub(crate) const STATUS: &str = "/var/lib/time-guardian-dev/status.ron";
-    pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian-dev/rampedup.ron";
+    pub(crate) const STATUS: &str = "/var/lib/time-guardian-dev/status.json";
+    pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian-dev/rampedup.json";
 }
 
 pub(crate) fn store(
@@ -58,11 +57,9 @@ pub(crate) fn load<T: DeserializeOwned>(path: &str) -> Result<T> {
 }
 
 pub(crate) fn from_str<T: DeserializeOwned>(input: &str) -> Result<T> {
-    Ok(ron::from_str(input)?)
+    Ok(serde_json::from_str(input)?)
 }
 
 pub(crate) fn to_string<T: Serialize>(object: &T) -> Result<String> {
-    let extensions = Extensions::all();
-    let config = PrettyConfig::new().extensions(extensions);
-    Ok(ron::ser::to_string_pretty(object, config)?)
+    Ok(serde_json::to_string_pretty(object)?)
 }
