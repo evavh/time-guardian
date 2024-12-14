@@ -10,11 +10,9 @@ deploy = []
 
 [dependencies]
 color-eyre = "0.6.2"
-peg = "0.8.1"
 serde = { version = "1.0.155", features = ["derive"] }
 serde_derive = "1.0.155"
 thiserror = "1.0.60"
-toml = "0.8.12"
 break-enforcer = { git = "https://github.com/evavh/break-enforcer-s" }
 serde_with = "3.8.1"
 clap = { version = "4.5.4", features = ["derive"] }
