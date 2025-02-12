@@ -122,7 +122,6 @@ impl UserConfig {
 
     fn todays_config(&self) -> DayConfig {
         let current_weekday: Weekday = Zoned::now().weekday().into();
-        dbg!(&current_weekday);
         let day_configs: Vec<DayConfig> = self
             .days
             .clone()
@@ -145,7 +144,7 @@ impl UserConfig {
             );
             return DayConfig::default();
         }
-        dbg!(day_configs.into_iter().next().expect("Checked for empty"))
+        day_configs.into_iter().next().expect("Checked for empty")
     }
 
     fn timeslots_right_now(&self) -> Option<Vec<TimeSlot>> {
@@ -233,7 +232,7 @@ impl Config {
             Config::default().store(file_io::path::TEMPLATE_CONFIG);
         }
 
-        match Config::load(dbg!(file_io::path::CONFIG)) {
+        match Config::load(file_io::path::CONFIG) {
             Ok(config) => config,
             Err(err) => {
                 error!(

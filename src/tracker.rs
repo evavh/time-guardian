@@ -9,7 +9,7 @@ use log::error;
 use serde_derive::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 
-use crate::config::Config;
+use crate::config::{Config, UserConfig};
 use crate::file_io;
 use crate::logging::log_error;
 use crate::time_slot::TimeSlot;
@@ -29,6 +29,17 @@ pub struct UserCounter {
 }
 
 impl UserCounter {
+    pub fn new(user_config: &UserConfig) -> Self {
+        let time_slots = user_config
+            .timeslots_today()
+            .clone()
+            .map(|x| x.into_iter().map(TimeSlot::zero_time).collect());
+        Self {
+            total_spent: Duration::default(),
+            time_slots,
+        }
+    }
+
     pub fn add_to_total_spent(&mut self, duration: Duration) {
         self.total_spent += duration;
     }
@@ -51,10 +62,17 @@ impl UserCounter {
 impl Tracker {
     pub(crate) fn initialize(config: &Config) -> Tracker {
         let tracker = match Tracker::load() {
-            Ok(tracker) => {
+            Ok(mut tracker) => {
                 if tracker.is_outdated() {
                     Tracker::new(config)
                 } else {
+                    // Make sure we get any new users in the config
+                    let new_tracker = Tracker::new(config);
+                    for (new_user, new_counter) in new_tracker.counter {
+                        if !tracker.counter.contains_key(&new_user) {
+                            tracker.counter.insert(new_user, new_counter);
+                        }
+                    }
                     tracker
                 }
             }
@@ -72,15 +90,7 @@ impl Tracker {
         let counter = config
             .iter()
             .map(|(user, user_config)| {
-                let time_slots = user_config
-                    .timeslots_today()
-                    .clone()
-                    .map(|x| x.into_iter().map(TimeSlot::zero_time).collect());
-                let user_counter = UserCounter {
-                    total_spent: Duration::default(),
-                    time_slots,
-                };
-                (user.clone(), user_counter)
+                (user.clone(), UserCounter::new(user_config))
             })
             .collect();
 
@@ -112,7 +122,7 @@ impl Tracker {
         let user_counter = self
             .counter
             .get_mut(user)
-            .expect("Initialized from the hashmap, should be in there");
+            .expect("Should have added any new users on load");
 
         user_counter.add_to_total_spent(duration);
         user_counter.add_to_current_timeslots(duration);
@@ -123,8 +133,7 @@ impl Tracker {
         config: &Config,
         user: &str,
     ) -> bool {
-        let Some(allowed_timeslots) =
-            &config.user(user).timeslots_today()
+        let Some(allowed_timeslots) = &config.user(user).timeslots_today()
         else {
             return false;
         };

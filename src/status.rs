@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{config::Config, tracker::Tracker, file_io};
+use crate::{config::Config, file_io, tracker::Tracker};
 
 pub(crate) fn spent(user: &str) {
     let spent = get_spent(user).as_secs_f64();
@@ -14,7 +14,14 @@ fn get_spent(user: &str) -> Duration {
     if tracker.is_outdated() {
         Duration::default()
     } else {
-        tracker.counter[user].total_spent
+        match tracker.counter.get(user) {
+            Some(user) => user,
+            None => {
+                eprintln!("Couldn't get {user} from {:?}", tracker.counter);
+                return Duration::MAX;
+            }
+        }
+        .total_spent
     }
 }
 
