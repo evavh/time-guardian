@@ -25,6 +25,8 @@ enum Error {
     OsString(OsString),
 }
 
+// TODO: add Windows version
+#[cfg(target_os = "linux")]
 pub(crate) fn list_users() -> Result<Vec<String>> {
     let users: Result<Vec<String>> = fs::read_dir("/home")?
         .map(|d| Ok(d?.file_name()))
@@ -35,7 +37,9 @@ pub(crate) fn list_users() -> Result<Vec<String>> {
     users
 }
 
+// TODO: add Windows version
 #[cfg(feature = "deploy")]
+#[cfg(target_os = "linux")]
 pub(crate) fn logout(user: &str) {
     info!("Logging out user {user}");
     let mut retries = 0;
@@ -63,6 +67,8 @@ pub(crate) fn logout(user: &str) {
     println!("Would log out user {user}, not deployed");
 }
 
+// TODO: add Windows version
+#[cfg(target_os = "linux")]
 pub(crate) fn exists(user: &str) -> bool {
     match fs::read_to_string("/etc/passwd") {
         Ok(passwd) => passwd
@@ -87,6 +93,8 @@ pub(crate) fn is_active(user: &str) -> bool {
     }
 }
 
+// TODO: add Windows version
+#[cfg(target_os = "linux")]
 fn is_active_err(user: &str) -> Result<bool, Error> {
     let output = Command::new("loginctl")
         .arg("show-user")

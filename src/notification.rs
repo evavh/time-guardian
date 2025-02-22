@@ -40,6 +40,7 @@ fn notify_user_err(target_name: &str, text: &str) -> Result<()> {
     Ok(())
 }
 
+// TODO: add Windows version
 fn get_logged_in_users() -> Result<Vec<(String, String)>, Error> {
     let users = Command::new("loginctl").output()?.stdout;
     let users = String::from_utf8(users)?;
@@ -59,6 +60,8 @@ fn get_logged_in_users() -> Result<Vec<(String, String)>, Error> {
     users
 }
 
+// TODO: use break-enforcer notify code for Linux
+// TODO: add Windows version
 fn notify(username: &str, uid: &str, text: &str) {
     let command = format!("sudo -u {username} DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{uid}/bus notify-send -t 5000 \"{text}\"");
 

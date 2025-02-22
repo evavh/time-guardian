@@ -15,6 +15,7 @@ pub(crate) mod path {
     pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian/rampedup.json";
 }
 
+// TODO: add windows paths
 #[cfg(not(feature = "deploy"))]
 pub(crate) mod path {
     pub(crate) const CONFIG: &str = "/etc/time-guardian-dev/config.json";
