@@ -1,3 +1,4 @@
 shopt -s extglob
 scp -r !(target) winvmadmin:"/c:/Users/Eva/time-guardian-full/"
-ssh winvm 'cd c:\Users\Eva\time-guardian-full && cargo run -F deploy -- run'
+ssh winvm 'cd c:\Users\Eva\time-guardian-full && cargo build -F deploy'
+ssh winvmadmin 'set RUST_LOG=trace && c:\Users\Eva\time-guardian-full\target\debug\time-guardian.exe run'

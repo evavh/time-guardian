@@ -2,32 +2,54 @@ use color_eyre::Result;
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::PathBuf;
 
-#[cfg(feature = "deploy")]
 pub(crate) mod path {
-    pub(crate) const CONFIG: &str = "/etc/time-guardian/config.json";
-    pub(crate) const PREV_CONFIG: &str = "/etc/time-guardian/prev-config.json";
-    pub(crate) const FALLBACK_CONFIG: &str =
-        "/etc/time-guardian/fallback-config.json";
-    pub(crate) const TEMPLATE_CONFIG: &str =
-        "/etc/time-guardian/template-config.json";
+    use const_format::concatcp;
 
-    pub(crate) const STATUS: &str = "/var/lib/time-guardian/status.json";
-    pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian/rampedup.json";
-}
+    #[cfg(feature = "deploy")]
+    #[cfg(target_os = "linux")]
+    const CONFIG_BASE: &str = "/etc/time-guardian/";
+    #[cfg(feature = "deploy")]
+    #[cfg(target_os = "linux")]
+    const STATUS_BASE: &str = "/var/lib/time-guardian/";
 
-// TODO: add windows paths
-#[cfg(not(feature = "deploy"))]
-pub(crate) mod path {
-    pub(crate) const CONFIG: &str = "/etc/time-guardian-dev/config.json";
+    #[cfg(not(feature = "deploy"))]
+    #[cfg(target_os = "linux")]
+    const CONFIG_BASE: &str = "/etc/time-guardian-dev/";
+    #[cfg(not(feature = "deploy"))]
+    #[cfg(target_os = "linux")]
+    const STATUS_BASE: &str = "/var/lib/time-guardian-dev/";
+
+    #[cfg(feature = "deploy")]
+    #[cfg(target_os = "windows")]
+    const CONFIG_BASE: &str = "C:\\ProgramData\\time-guardian\\";
+    #[cfg(feature = "deploy")]
+    #[cfg(target_os = "windows")]
+    const STATUS_BASE: &str = "C:\\ProgramData\\time-guardian\\";
+
+    #[cfg(not(feature = "deploy"))]
+    #[cfg(target_os = "windows")]
+    const CONFIG_BASE: &str = "C:\\ProgramData\\time-guardian-dev\\";
+    #[cfg(not(feature = "deploy"))]
+    #[cfg(target_os = "windows")]
+    const STATUS_BASE: &str = "C:\\ProgramData\\time-guardian-dev\\";
+
+    const CONFIG_NAME: &str = "config.json";
+    const PREV_CONFIG_NAME: &str = "prev-config.json";
+    const FALLBACK_CONFIG_NAME: &str = "fallback-config.json";
+    const TEMPLATE_CONFIG_NAME: &str = "template-config.json";
+    const STATUS_NAME: &str = "status.json";
+    const RAMPEDUP_NAME: &str = "rampedup.json";
+
+    pub(crate) const CONFIG: &str = concatcp!(CONFIG_BASE, CONFIG_NAME);
     pub(crate) const PREV_CONFIG: &str =
-        "/etc/time-guardian-dev/prev-config.json";
+        concatcp!(CONFIG_BASE, PREV_CONFIG_NAME);
     pub(crate) const FALLBACK_CONFIG: &str =
-        "/etc/time-guardian-dev/fallback-config.json";
+        concatcp!(CONFIG_BASE, FALLBACK_CONFIG_NAME);
     pub(crate) const TEMPLATE_CONFIG: &str =
-        "/etc/time-guardian-dev/template-config.json";
+        concatcp!(CONFIG_BASE, TEMPLATE_CONFIG_NAME);
 
-    pub(crate) const STATUS: &str = "/var/lib/time-guardian-dev/status.json";
-    pub(crate) const RAMPEDUP: &str = "/var/lib/time-guardian-dev/rampedup.json";
+    pub(crate) const STATUS: &str = concatcp!(STATUS_BASE, STATUS_NAME);
+    pub(crate) const RAMPEDUP: &str = concatcp!(STATUS_BASE, RAMPEDUP_NAME);
 }
 
 pub(crate) fn store(
