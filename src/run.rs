@@ -2,6 +2,7 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
+#[allow(unused_imports)]
 use log::{error, info, trace};
 
 use crate::config::Config;
@@ -17,7 +18,9 @@ pub(crate) fn run() {
     let mut tracker = Tracker::initialize(&config);
     config.store(path::RAMPEDUP);
 
+    #[cfg(target_os = "linux")]
     let mut break_enforcer = break_enforcer::Api::new();
+    #[cfg(target_os = "linux")]
     let mut retries = 0;
 
     let mut now = Instant::now();
@@ -37,7 +40,11 @@ pub(crate) fn run() {
 
         for (user, user_config) in config.iter() {
             // Default to 0 idle = active
+            #[cfg(target_os = "linux")]
             let idle_time = get_idle_time(&mut break_enforcer, &mut retries);
+            #[cfg(target_os = "windows")]
+            let idle_time = Duration::default();
+
             if user::is_active(user)
                 && idle_time < Duration::from_secs(BREAK_IDLE_THRESHOLD)
             {
@@ -69,6 +76,7 @@ pub(crate) fn run() {
     }
 }
 
+#[cfg(target_os = "linux")]
 pub(crate) fn get_idle_time(
     api_connection: &mut Result<break_enforcer::Api, break_enforcer::Error>,
     retries: &mut usize,

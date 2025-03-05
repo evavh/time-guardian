@@ -1,14 +1,16 @@
 use clap::{Parser, Subcommand};
 
 mod config;
-mod tracker;
 mod file_io;
+mod logging;
 mod notification;
 mod run;
+#[cfg(target_os = "windows")]
+mod session;
 mod status;
-mod user;
-mod logging;
 mod time_slot;
+mod tracker;
+mod user;
 
 const BREAK_IDLE_THRESHOLD: u64 = 10;
 

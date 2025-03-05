@@ -13,7 +13,6 @@ color-eyre = "0.6.2"
 serde = { version = "1.0.155", features = ["derive"] }
 serde_derive = "1.0.155"
 thiserror = "1.0.60"
-break-enforcer = { git = "https://github.com/evavh/break-enforcer-s" }
 serde_with = "3.8.1"
 clap = { version = "4.5.4", features = ["derive"] }
 env_logger = "0.11.3"
@@ -21,3 +20,20 @@ log = "0.4.21"
 jiff = { version = "0.1.15", features = ["serde"] }
 strum = { version = "0.26.3", features = ["derive"] }
 serde_json = "1.0.133"
+
+
+[target.'cfg(target_os = "windows")'.dependencies]
+tauri-winrt-notification = "0.7.0"
+windows-core = "0.58.0"
+windows = { version = "0.58.0", features = [
+  "System",
+  "Foundation_Collections",
+  "Win32",
+  "Win32_System",
+  "Win32_System_Shutdown",
+  "Win32_System_WindowsProgramming",
+  "Win32_System_RemoteDesktop",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+break-enforcer = { git = "https://github.com/evavh/break-enforcer-s" }

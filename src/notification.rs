@@ -41,6 +41,7 @@ fn notify_user_err(target_name: &str, text: &str) -> Result<()> {
 }
 
 // TODO: add Windows version
+/// Returns Vec of (uid, username)
 fn get_logged_in_users() -> Result<Vec<(String, String)>, Error> {
     let users = Command::new("loginctl").output()?.stdout;
     let users = String::from_utf8(users)?;
