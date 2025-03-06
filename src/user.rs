@@ -13,15 +13,11 @@ use log::{error, info, warn};
 use thiserror::Error;
 
 #[cfg(target_os = "windows")]
-use windows::core::PWSTR;
-#[cfg(target_os = "windows")]
 #[cfg(feature = "deploy")]
 use windows::Win32::System::RemoteDesktop::WTSLogoffSession;
 #[cfg(target_os = "windows")]
 #[cfg(feature = "deploy")]
 use windows::Win32::System::RemoteDesktop::WTS_CURRENT_SERVER_HANDLE;
-#[cfg(target_os = "windows")]
-use windows::Win32::System::WindowsProgramming;
 
 #[cfg(target_os = "windows")]
 use crate::session;
@@ -35,11 +31,13 @@ enum Error {
     Command(#[from] std::io::Error),
     #[error("Utf8 parsing error")]
     Utf8(#[from] core::str::Utf8Error),
+    #[cfg(target_os = "linux")]
     #[error("Unexpected error from loginctl")]
     Loginctl(String),
     #[error("OsString couldn't be converted")]
     OsString(OsString),
 
+    #[cfg(target_os = "linux")]
     #[error("Error getting username from Windows")]
     GetUserName(String),
     #[error("Error converting string to Utf16")]
