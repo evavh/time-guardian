@@ -49,7 +49,6 @@ enum Error {
     Windows(#[from] windows_core::Error),
 }
 
-// TODO: add Windows version
 pub(crate) fn list_users() -> Result<Vec<String>> {
     #[cfg(target_os = "linux")]
     let home_dir = "/home";
@@ -149,7 +148,6 @@ pub(crate) fn is_active(user: &str) -> bool {
     }
 }
 
-// TODO: add Windows version
 #[cfg(target_os = "linux")]
 fn is_active_err(user: &str) -> Result<bool, Error> {
     let output = Command::new("loginctl")
@@ -170,38 +168,6 @@ fn is_active_err(user: &str) -> Result<bool, Error> {
 }
 
 #[cfg(target_os = "windows")]
-/// Unsafe
 fn is_active_err(user: &str) -> Result<bool, Error> {
-    let current_user = get_current_user()?;
-    Ok(user == current_user)
-}
-
-#[cfg(target_os = "windows")]
-fn get_current_user() -> Result<String, Error> {
-    let mut buffer: Vec<u16> = Vec::with_capacity(256);
-    let current_user = PWSTR::from_raw(buffer.as_mut_ptr());
-    let mut username_len = 0;
-    let username_len: *mut u32 = &mut username_len;
-
-    let current_user = unsafe {
-        match WindowsProgramming::GetUserNameW(current_user, username_len) {
-            Err(_) => {
-                let mut buffer =
-                    Vec::<u16>::with_capacity(*username_len as usize);
-                let current_user = PWSTR::from_raw(buffer.as_mut_ptr());
-                WindowsProgramming::GetUserNameW(current_user, username_len)
-                    .unwrap();
-                current_user
-            }
-            Ok(_) => current_user,
-        }
-    };
-
-    if current_user.is_null() {
-        return Err(Error::GetUserName(
-            "Windows current username returned None".to_string(),
-        ));
-    }
-
-    unsafe { Ok(current_user.to_string()?) }
+    Ok(get_active_consoles().any(|s| s.username == Some(user.to_string())))
 }
