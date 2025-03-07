@@ -58,6 +58,7 @@ pub(crate) fn run() {
                 );
                 trace!("Timeslots: {:#?}", tracker.counter[user].time_slots);
 
+                // TODO: make fn on Tracker
                 if tracker.counter[user].total_spent
                     >= user_config.total_allowed_today()
                     || tracker.timeslot_over_time(&config, user)
@@ -116,7 +117,9 @@ pub(crate) fn issue_warnings(
         .total_allowed_today()
         .saturating_sub(tracker.counter[user].total_spent);
 
-    if time_left == config.short_warning || time_left == config.long_warning {
+    if time_left.as_secs() == config.short_warning.as_secs()
+        || time_left.as_secs() == config.long_warning.as_secs()
+    {
         notification::notify_user(
             user,
             &format!("You will be logged out in {time_left:.0?} seconds!",),
