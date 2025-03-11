@@ -22,6 +22,8 @@ pub(crate) fn run() {
     let mut break_enforcer = break_enforcer::Api::new();
     #[cfg(target_os = "linux")]
     let mut retries = 0;
+    #[cfg(target_os = "windows")]
+    let mut notified_startup = false;
 
     let mut now = Instant::now();
 
@@ -50,6 +52,16 @@ pub(crate) fn run() {
             {
                 // TODO? limitation: only reloads new timeslot settings on new day
                 tracker.add(user, elapsed);
+
+                #[cfg(target_os = "windows")]
+                if !notified_startup {
+                    notification::notify_user(
+                        user,
+                        "You have {} left today",
+                        user_config.total_allowed_today(),
+                    );
+                    notified_startup = true;
+                }
 
                 trace!(
                     "{user} spent {:.1?} out of {:?}",
