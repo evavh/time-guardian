@@ -57,8 +57,11 @@ pub(crate) fn run() {
                 if !notified_startup {
                     notification::notify_user(
                         user,
-                        "You have {} left today",
-                        user_config.total_allowed_today(),
+                        &format!(
+                            "You have {:.0?} left today",
+                            user_config.total_allowed_today()
+                                - tracker.counter[user].total_spent
+                        ),
                     );
                     notified_startup = true;
                 }
