@@ -32,6 +32,8 @@ pub struct UserConfig {
     pub short_warning: Duration,
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     pub long_warning: Duration,
+    // TODO: implement a way for rampup to apply to timeslots, not just
+    // total_allowed for the day
     pub rampup: Option<Rampup>,
     // TODO: change to jiff Weekday when it supports serde...
     days: HashMap<String, DayConfig>,
@@ -106,17 +108,42 @@ impl Default for DayConfig {
     }
 }
 
+impl DayConfig {
+    pub(crate) fn apply_rampup_for_today(mut self, rampup: &Rampup) -> Self {
+        let today = Zoned::now().datetime().date();
+        if today > rampup.start_date {
+            let n_days: i32 = (today - rampup.start_date).get_days();
+            let old_seconds: u32 = self
+                .total_allowed
+                .as_secs()
+                .try_into()
+                .expect("allowed time < 22Myears");
+
+            let new_seconds: u32 = match rampup.speed {
+                Speed::ConstantSeconds(s) => {
+                    old_seconds.saturating_add_signed(n_days * s)
+                }
+                Speed::Percentage(p) => add_percentage(old_seconds, n_days, p),
+            };
+            self.total_allowed = Duration::from_secs(new_seconds.into());
+        }
+        self
+    }
+}
+
 impl UserConfig {
     pub fn clamp_rampup(mut self) -> Self {
         self.rampup = self.rampup.map(Rampup::clamp_percentage);
         self
     }
 
-    // TODO: merge this with todays_config_mut and apply_rampup_for_today,
-    // just let apply_rampup return today's config, since we do it for every
-    // new day anyway and then ignore the rest of the config
     pub fn total_allowed_today(&self) -> Duration {
-        self.todays_config().total_allowed
+        let todays_config = self.todays_config();
+        let todays_config = match &self.rampup {
+            Some(rampup) => todays_config.apply_rampup_for_today(rampup),
+            None => todays_config,
+        };
+        todays_config.total_allowed
     }
 
     pub fn timeslots_today(&self) -> Option<Vec<TimeSlot>> {
@@ -148,17 +175,6 @@ impl UserConfig {
             return DayConfig::default();
         }
         day_configs.into_iter().next().expect("Checked for empty")
-    }
-
-    fn todays_config_mut(&mut self) -> Option<&mut DayConfig> {
-        let current_weekday: Weekday = Zoned::now().weekday().into();
-        self.days
-            .iter_mut()
-            .filter(|(days_str, _)| {
-                to_days(days_str).contains(&current_weekday)
-            })
-            .next()
-            .map(|(_k, v)| v)
     }
 
     fn timeslots_right_now(&self) -> Option<Vec<TimeSlot>> {
@@ -337,44 +353,6 @@ impl Config {
 
     pub fn allowed(&self, user: &str) -> Duration {
         self.0[user].todays_config().total_allowed
-    }
-
-    pub(crate) fn apply_rampup_for_today(self) -> Self {
-        fn apply_rampup_to_user(mut user_config: UserConfig) -> UserConfig {
-            if let Some(ref rampup) = user_config.rampup.clone() {
-                let today = Zoned::now().datetime().date();
-                if today > rampup.start_date {
-                    let n_days: i32 = (today - rampup.start_date).get_days();
-                    let Some(day_config) = user_config.todays_config_mut()
-                    else {
-                        return user_config;
-                    };
-                    let old_seconds: u32 = day_config
-                        .total_allowed
-                        .as_secs()
-                        .try_into()
-                        .expect("allowed time < 22Myears");
-
-                    let new_seconds: u32 = match rampup.speed {
-                        Speed::ConstantSeconds(s) => {
-                            old_seconds.saturating_add_signed(n_days * s)
-                        }
-                        Speed::Percentage(p) => {
-                            add_percentage(old_seconds, n_days, p)
-                        }
-                    };
-                    day_config.total_allowed =
-                        Duration::from_secs(new_seconds.into());
-                }
-            }
-            user_config
-        }
-
-        Self(
-            self.into_iter()
-                .map(|(u, u_c)| (u, apply_rampup_to_user(u_c)))
-                .collect(),
-        )
     }
 }
 

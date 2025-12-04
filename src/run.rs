@@ -14,9 +14,9 @@ use crate::user;
 use crate::BREAK_IDLE_THRESHOLD;
 
 pub(crate) fn run() {
-    let mut config = Config::initialize_from_files().apply_rampup_for_today();
-    let mut tracker = Tracker::initialize(&config);
-    config.store(path::RAMPEDUP);
+    let mut full_config = Config::initialize_from_files();
+    let mut tracker = Tracker::initialize(&full_config);
+    full_config.store(path::RAMPEDUP);
 
     #[cfg(target_os = "linux")]
     let mut break_enforcer = break_enforcer::Api::new();
@@ -30,17 +30,17 @@ pub(crate) fn run() {
     loop {
         if tracker.is_outdated() {
             info!("New day, resetting");
-            tracker = Tracker::new(&config);
+            tracker = Tracker::new(&full_config);
 
-            config = config.reload().apply_rampup_for_today();
-            config.store(path::RAMPEDUP);
+            full_config = full_config.reload();
+            full_config.store(path::RAMPEDUP);
         }
 
         thread::sleep(Duration::from_secs(1));
         let elapsed = now.elapsed();
         now = Instant::now();
 
-        for (user, user_config) in config.iter() {
+        for (user, user_config) in full_config.iter() {
             // Default to 0 idle = active
             #[cfg(target_os = "linux")]
             let idle_time = get_idle_time(&mut break_enforcer, &mut retries);
@@ -76,7 +76,7 @@ pub(crate) fn run() {
                 // TODO: make fn on Tracker
                 if tracker.counter[user].total_spent
                     >= user_config.total_allowed_today()
-                    || tracker.timeslot_over_time(&config, user)
+                    || tracker.timeslot_over_time(&full_config, user)
                     || !user_config.now_within_timeslot()
                 {
                     user::logout(user);
