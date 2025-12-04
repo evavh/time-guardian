@@ -14,7 +14,7 @@ use crate::user;
 use crate::BREAK_IDLE_THRESHOLD;
 
 pub(crate) fn run() {
-    let mut config = Config::initialize_from_files().apply_rampup();
+    let mut config = Config::initialize_from_files().apply_rampup_for_today();
     let mut tracker = Tracker::initialize(&config);
     config.store(path::RAMPEDUP);
 
@@ -32,7 +32,7 @@ pub(crate) fn run() {
             info!("New day, resetting");
             tracker = Tracker::new(&config);
 
-            config = config.reload().apply_rampup();
+            config = config.reload().apply_rampup_for_today();
             config.store(path::RAMPEDUP);
         }
 

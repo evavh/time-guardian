@@ -112,6 +112,9 @@ impl UserConfig {
         self
     }
 
+    // TODO: merge this with todays_config_mut and apply_rampup_for_today,
+    // just let apply_rampup return today's config, since we do it for every
+    // new day anyway and then ignore the rest of the config
     pub fn total_allowed_today(&self) -> Duration {
         self.todays_config().total_allowed
     }
@@ -336,39 +339,40 @@ impl Config {
         self.0[user].todays_config().total_allowed
     }
 
-    pub(crate) fn apply_rampup(self) -> Self {
+    pub(crate) fn apply_rampup_for_today(self) -> Self {
+        fn apply_rampup_to_user(mut user_config: UserConfig) -> UserConfig {
+            if let Some(ref rampup) = user_config.rampup.clone() {
+                let today = Zoned::now().datetime().date();
+                if today > rampup.start_date {
+                    let n_days: i32 = (today - rampup.start_date).get_days();
+                    let Some(day_config) = user_config.todays_config_mut()
+                    else {
+                        return user_config;
+                    };
+                    let old_seconds: u32 = day_config
+                        .total_allowed
+                        .as_secs()
+                        .try_into()
+                        .expect("allowed time < 22Myears");
+
+                    let new_seconds: u32 = match rampup.speed {
+                        Speed::ConstantSeconds(s) => {
+                            old_seconds.saturating_add_signed(n_days * s)
+                        }
+                        Speed::Percentage(p) => {
+                            add_percentage(old_seconds, n_days, p)
+                        }
+                    };
+                    day_config.total_allowed =
+                        Duration::from_secs(new_seconds.into());
+                }
+            }
+            user_config
+        }
+
         Self(
             self.into_iter()
-                .map(|(user, mut user_config)| {
-                    if let Some(ref rampup) = user_config.rampup.clone() {
-                        let today = Zoned::now().datetime().date();
-                        if today > rampup.start_date {
-                            let n_days: i32 =
-                                (today - rampup.start_date).get_days();
-                            let Some(day_config) =
-                                user_config.todays_config_mut()
-                            else {
-                                return (user, user_config);
-                            };
-                            let old_seconds: u32 = day_config
-                                .total_allowed
-                                .as_secs()
-                                .try_into()
-                                .expect("allowed time < 22Myears");
-
-                            let new_seconds: u32 = match rampup.speed {
-                                Speed::ConstantSeconds(s) => old_seconds
-                                    .saturating_add_signed(n_days * s),
-                                Speed::Percentage(p) => {
-                                    add_percentage(old_seconds, n_days, p)
-                                }
-                            };
-                            day_config.total_allowed =
-                                Duration::from_secs(new_seconds.into());
-                        }
-                    }
-                    (user, user_config)
-                })
+                .map(|(u, u_c)| (u, apply_rampup_to_user(u_c)))
                 .collect(),
         )
     }
