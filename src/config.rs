@@ -147,6 +147,17 @@ impl UserConfig {
         day_configs.into_iter().next().expect("Checked for empty")
     }
 
+    fn todays_config_mut(&mut self) -> Option<&mut DayConfig> {
+        let current_weekday: Weekday = Zoned::now().weekday().into();
+        self.days
+            .iter_mut()
+            .filter(|(days_str, _)| {
+                to_days(days_str).contains(&current_weekday)
+            })
+            .next()
+            .map(|(_k, v)| v)
+    }
+
     fn timeslots_right_now(&self) -> Option<Vec<TimeSlot>> {
         self.todays_config().time_slots.as_ref().map(|x| {
             x.iter()
@@ -328,13 +339,17 @@ impl Config {
     pub(crate) fn apply_rampup(self) -> Self {
         Self(
             self.into_iter()
-                .map(|(user, user_config)| {
-                    let mut day_config = user_config.todays_config();
-                    if let Some(rampup) = &user_config.rampup {
+                .map(|(user, mut user_config)| {
+                    if let Some(ref rampup) = user_config.rampup.clone() {
                         let today = Zoned::now().datetime().date();
                         if today > rampup.start_date {
                             let n_days: i32 =
                                 (today - rampup.start_date).get_days();
+                            let Some(day_config) =
+                                user_config.todays_config_mut()
+                            else {
+                                return (user, user_config);
+                            };
                             let old_seconds: u32 = day_config
                                 .total_allowed
                                 .as_secs()
