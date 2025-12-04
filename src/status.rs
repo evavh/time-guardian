@@ -27,8 +27,8 @@ fn get_spent(user: &str) -> Duration {
 
 pub(crate) fn status(user: &str) {
     let spent = get_spent(user);
-    let rampedup = Config::load(file_io::path::RAMPEDUP).unwrap();
-    let allowed = rampedup.allowed(user);
+    let config = Config::initialize_from_files();
+    let allowed = config.allowed(user);
 
     println!("time left: {}", format(allowed.saturating_sub(spent)));
 }

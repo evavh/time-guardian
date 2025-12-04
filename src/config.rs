@@ -352,7 +352,7 @@ impl Config {
     }
 
     pub fn allowed(&self, user: &str) -> Duration {
-        self.0[user].todays_config().total_allowed
+        self.0[user].total_allowed_today()
     }
 }
 
