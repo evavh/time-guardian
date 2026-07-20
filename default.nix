@@ -14,5 +14,8 @@ pkgs.rustPlatform.buildRustPackage {
       "break-enforcer-0.3.2" = "sha256-w9Ov5+JODhZcb5n/FU4qdnAyoaSmY0mAkbDFJiU3EBg=";
     };
   };
+
+  buildFeatures = [ "deploy" ];
+
   inherit src;
 }
