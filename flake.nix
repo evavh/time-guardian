@@ -12,5 +12,6 @@
     in
     {
       packages.${system}.default = nixpkgs.legacyPackages.${system}.callPackage ./default.nix { };
+      nixosModules.default = import ./nix_module.nix;
     };
 }
